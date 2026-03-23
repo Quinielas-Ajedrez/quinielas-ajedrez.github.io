@@ -105,24 +105,61 @@ function TournamentList({
   onSelect,
   onLogout,
   onManageUsers,
+  onImportSuccess,
   user,
 }: {
   onSelect: (id: number) => void
   onLogout: () => void
   onManageUsers?: () => void
-  user: { name: string; username: string; is_super_admin: boolean }
+  onImportSuccess?: (tournamentId: number) => void
+  user: { name: string; username: string; is_admin: boolean; is_super_admin: boolean }
 }) {
   const [tournaments, setTournaments] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showImport, setShowImport] = useState(false)
+  const [importYaml, setImportYaml] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState('')
 
-  useEffect(() => {
+  const refresh = () =>
     api.tournaments
       .list()
       .then(setTournaments)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
-      .finally(() => setLoading(false))
+
+  useEffect(() => {
+    refresh().finally(() => setLoading(false))
   }, [])
+
+  const handleImport = async () => {
+    const yaml = importYaml.trim()
+    if (!yaml) {
+      setImportError('Paste YAML or choose a file')
+      return
+    }
+    setImporting(true)
+    setImportError('')
+    try {
+      const t = await api.tournaments.import(yaml)
+      setImportYaml('')
+      setShowImport(false)
+      await refresh()
+      onImportSuccess?.(t.id)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import failed')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (f) {
+      f.text().then(setImportYaml).catch(() => setImportError('Could not read file'))
+    }
+    e.target.value = ''
+  }
 
   return (
     <div style={{ maxWidth: 640, margin: '4rem auto', fontFamily: 'system-ui' }}>
@@ -144,6 +181,23 @@ function TournamentList({
             Manage users
           </button>
         )}
+        {user.is_admin && (
+          <button
+            type="button"
+            onClick={() => setShowImport(!showImport)}
+            style={{
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.875rem',
+              border: '1px solid #999',
+              borderRadius: 4,
+              background: showImport ? '#333' : 'transparent',
+              color: showImport ? '#fff' : undefined,
+              cursor: 'pointer',
+            }}
+          >
+            Import tournament
+          </button>
+        )}
         <button
           type="button"
           onClick={onLogout}
@@ -162,6 +216,84 @@ function TournamentList({
       <p style={{ color: '#666', marginBottom: '1.5rem' }}>
         Welcome, {user.name}. Choose a tournament to make predictions.
       </p>
+
+      {showImport && user.is_admin && (
+        <div
+          style={{
+            padding: '1rem',
+            marginBottom: '1rem',
+            border: '1px solid #e5e4e7',
+            borderRadius: 4,
+            background: '#fafafa',
+          }}
+        >
+          <h3 style={{ fontSize: '1rem', margin: '0 0 0.75rem 0' }}>Import from YAML</h3>
+          <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>
+            Choose a file or paste YAML below. See examples/sample_tournament.yaml for the format.
+          </p>
+          <input
+            type="file"
+            accept=".yaml,.yml"
+            onChange={handleFileChange}
+            style={{ marginBottom: '0.5rem' }}
+          />
+          <textarea
+            value={importYaml}
+            onChange={(e) => setImportYaml(e.target.value)}
+            placeholder="Or paste YAML here..."
+            rows={8}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              fontSize: '0.875rem',
+              fontFamily: 'monospace',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              marginBottom: '0.5rem',
+              boxSizing: 'border-box',
+            }}
+          />
+          {importError && (
+            <p style={{ color: '#c00', fontSize: '0.875rem', marginBottom: '0.5rem' }}>{importError}</p>
+          )}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={importing || !importYaml.trim()}
+              style={{
+                padding: '0.35rem 0.75rem',
+                fontSize: '0.875rem',
+                border: '1px solid #333',
+                borderRadius: 4,
+                background: importYaml.trim() ? '#333' : '#ccc',
+                color: '#fff',
+                cursor: importYaml.trim() ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {importing ? 'Importing…' : 'Import'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowImport(false)
+                setImportYaml('')
+                setImportError('')
+              }}
+              style={{
+                padding: '0.35rem 0.75rem',
+                fontSize: '0.875rem',
+                border: '1px solid #999',
+                borderRadius: 4,
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <h2 style={{ fontSize: '1.125rem', marginBottom: '0.75rem' }}>Tournaments</h2>
       {loading && <p style={{ color: '#666' }}>Loading…</p>}
@@ -212,6 +344,7 @@ function AppContent({
         onLogout={onLogout}
         onSelect={(id) => setView({ type: 'tournament', id })}
         onManageUsers={() => setView('users')}
+        onImportSuccess={(id) => setView({ type: 'tournament', id })}
       />
     )
   }

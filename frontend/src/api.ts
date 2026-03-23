@@ -61,6 +61,11 @@ export const api = {
   tournaments: {
     list: () =>
       request<{ id: number; name: string }[]>('/tournaments'),
+    import: (yaml_content: string) =>
+      request<{ id: number; name: string; rounds: unknown[] }>('/tournaments/import', {
+        method: 'POST',
+        json: { yaml_content },
+      }),
     get: (id: number) =>
       request<{
         id: number
