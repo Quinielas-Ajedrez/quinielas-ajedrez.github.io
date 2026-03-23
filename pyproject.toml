@@ -1,0 +1,15 @@
+[project]
+name = "quiniela"
+version = "0.1.0"
+description = "Chess tournament prediction system"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0",
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=4.0.0",
+]
+

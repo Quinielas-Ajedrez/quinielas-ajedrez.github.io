@@ -1,0 +1,41 @@
+name: "World Championship 2025"
+
+rounds:
+  - round_number: 1
+    round_name: "Round 1"
+    prediction_deadline: "2025-03-01T14:00:00"
+    games:
+      - white_player: "Magnus Carlsen"
+        black_player: "Fabiano Caruana"
+        white_rating: 2830
+        black_rating: 2805
+      - white_player: "Hikaru Nakamura"
+        black_player: "Ding Liren"
+        white_rating: 2780
+        black_rating: 2795
+
+  - round_number: 2
+    round_name: "Round 2"
+    prediction_deadline: "2025-12-15T14:00:00"
+    games:
+      - white: "Fabiano Caruana"
+        black: "Magnus Carlsen"
+        white_rating: 2805
+        black_rating: 2830
+      - white: "Ding Liren"
+        black: "Hikaru Nakamura"
+        white_rating: 2795
+        black_rating: 2780
+
+  - round_number: 3
+    round_name: "Round 3"
+    prediction_deadline: "2026-05-20T18:00:00"
+    games:
+      - white_player: "Magnus Carlsen"
+        black_player: "Ding Liren"
+        white_rating: 2830
+        black_rating: 2795
+      - white_player: "Fabiano Caruana"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2805
+        black_rating: 2780

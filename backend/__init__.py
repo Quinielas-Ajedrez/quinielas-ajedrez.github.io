@@ -1,0 +1,1 @@
+"""Chess tournament prediction backend."""
