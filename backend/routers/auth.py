@@ -46,7 +46,8 @@ def submit_site_gate(
         value=token,
         max_age=GATE_COOKIE_MAX_AGE,
         httponly=True,
-        samesite="lax",
+        samesite="none",
+        secure=True,
         path="/",
     )
     return {"ok": True}
