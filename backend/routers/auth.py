@@ -1,5 +1,7 @@
 """Auth endpoints."""
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -16,8 +18,9 @@ from ..deps import (
     verify_gate_token,
     verify_password,
 )
+from ..models import User
 from ..repository import get_user_by_username, save_user
-from ..schemas import LoginRequest, TokenResponse, UserCreate, UserResponse
+from ..schemas import BootstrapRequest, LoginRequest, TokenResponse, UserCreate, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -82,6 +85,47 @@ def logout() -> dict:
     return {"message": "Logged out"}
 
 
+@router.post("/bootstrap", response_model=UserResponse)
+def bootstrap_super_admin(
+    body: BootstrapRequest,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """
+    Promote a user to super-admin. Requires BOOTSTRAP_SECRET env var.
+    Use when Shell is unavailable (e.g. Render free tier).
+    """
+    secret = os.getenv("BOOTSTRAP_SECRET", "")
+    if not secret or body.secret != secret:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing bootstrap secret",
+        )
+    user = get_user_by_username(db, body.username)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    updated = save_user(
+        db,
+        User(
+            id=user.id,
+            name=user.name,
+            username=user.username,
+            password_hash=user.password_hash,
+            is_admin=True,
+            is_super_admin=True,
+        ),
+    )
+    return UserResponse(
+        id=updated.id,
+        name=updated.name,
+        username=updated.username,
+        is_admin=updated.is_admin,
+        is_super_admin=updated.is_super_admin,
+    )
+
+
 @router.get("/me", response_model=UserResponse)
 def me(user=Depends(get_current_user)) -> UserResponse:
     return UserResponse(
@@ -103,7 +147,6 @@ def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken",
         )
-    from ..models import User
 
     user = save_user(
         db,
@@ -136,7 +179,6 @@ def create_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken",
         )
-    from ..models import User
 
     user = save_user(
         db,

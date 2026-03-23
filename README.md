@@ -70,6 +70,7 @@ Then open http://127.0.0.1:8000/docs for interactive API docs.
 |--------|----------|-------------|
 | POST | `/auth/login` | Login, returns token |
 | POST | `/auth/register` | Self-register |
+| POST | `/auth/bootstrap` | Promote user to super-admin (requires `BOOTSTRAP_SECRET`) |
 | GET | `/auth/me` | Current user |
 | GET | `/tournaments` | List tournaments |
 | GET | `/tournaments/{id}` | Get tournament with rounds & games |
@@ -83,6 +84,8 @@ Then open http://127.0.0.1:8000/docs for interactive API docs.
 | PATCH | `/rounds/{id}` | Update round (admin) |
 
 ## Deployment
+
+For **GitHub Pages + Render**, see [DEPLOY.md](DEPLOY.md) for step-by-step instructions.
 
 ### Build the frontend
 
@@ -104,6 +107,7 @@ For production, set environment variables:
 - `SITE_PASSWORD` — shared gate password (default: `quiniela`)
 - `CORS_ORIGINS` — comma-separated allowed origins, e.g. `https://yourdomain.com`
 - `SECRET_KEY` — JWT signing key (optional; generate a long random string for production)
+- `BOOTSTRAP_SECRET` — optional; when set, `POST /auth/bootstrap` can promote a user to super-admin (for Render free tier without Shell)
 
 ### Serve the app
 
@@ -146,3 +150,31 @@ WantedBy=multi-user.target
 ### Database
 
 SQLite is used by default (`data/quiniela.db`). Ensure the `data/` directory is writable. For higher concurrency, consider PostgreSQL (would require code changes to support `DATABASE_URL`).
+
+### Admin permissions when deployed
+
+**Option A: Bootstrap endpoint** (Render free tier - no Shell):
+
+1. Set `BOOTSTRAP_SECRET` in your host's environment (e.g. a long random string).
+2. Register a user via the app.
+3. Call the bootstrap endpoint (from your machine):
+
+```bash
+curl -X POST https://your-backend.onrender.com/auth/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"secret":"your-bootstrap-secret","username":"yourusername"}'
+```
+
+The user is promoted to super-admin.
+
+**Option B: Shell** (Render paid tier – Shell tab):
+
+```bash
+uv run python -m backend.create_user "Your Name" yourusername yourpassword --super-admin
+# or promote existing user:
+uv run python -m backend.create_user --promote-super-admin yourusername
+```
+
+**Grant admin to others:** Log in as super-admin and use **Manage users** in the app, or create new admins from the shell: `uv run python -m backend.create_user "Name" username password --admin`
+
+**Note:** On Render’s free tier, the disk is ephemeral; data can be lost on redeploy. Consider a persistent database (e.g. PostgreSQL) for production.

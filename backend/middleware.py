@@ -11,6 +11,7 @@ def _is_gate_exempt(path: str) -> bool:
     p = path.split("?")[0].rstrip("/") or "/"
     return (
         p == "/auth/site-gate"
+        or p == "/auth/bootstrap"
         or p.startswith("/docs")
         or p.startswith("/redoc")
         or p == "/openapi.json"

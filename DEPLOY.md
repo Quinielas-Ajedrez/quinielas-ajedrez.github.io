@@ -24,7 +24,8 @@
 
 6. Add environment variables (Environment tab):
    - `SITE_PASSWORD` = your gate password
-   - `CORS_ORIGINS` = `https://yourusername.github.io` (you’ll add your real GitHub Pages URL in Step 3)
+   - `BOOTSTRAP_SECRET` = a long random string (e.g. `openssl rand -hex 32`) - used to promote your first super-admin without Shell
+   - `CORS_ORIGINS` = `https://yourusername.github.io` (you'll add your real GitHub Pages URL in Step 6)
 
 7. Click **Create Web Service** and wait for the first deploy.
 
@@ -52,9 +53,9 @@
 1. In your repo, go to **Settings** → **Pages**.
 
 2. Under **Build and deployment**, set:
-   - **Source:** GitHub Actions
+   - **Source:** GitHub Actions (not "Deploy from a branch")
 
-3. Save.
+3. Save. If you had "Deploy from a branch" selected before, GitHub was serving the repo root (no `index.html`). Switching to GitHub Actions fixes that.
 
 ---
 
@@ -75,11 +76,28 @@
 
 ---
 
-## Step 5: Update CORS on Render
+## Step 5: Make yourself super-admin
+
+Render's free tier has no Shell, so use the bootstrap endpoint:
+
+1. Register via the app (site gate password → sign up).
+2. From your machine, run (use your Render URL and the `BOOTSTRAP_SECRET` you set):
+
+```bash
+curl -X POST https://your-app.onrender.com/auth/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"secret":"YOUR_BOOTSTRAP_SECRET","username":"YOUR_USERNAME"}'
+```
+
+3. Log in again – you'll see **Manage users**.
+
+---
+
+## Step 6: Update CORS on Render
 
 1. Go back to Render → your service → **Environment**.
 
-2. Set `CORS_ORIGINS` to your GitHub Pages URL:
+2. Ensure `CORS_ORIGINS` is your GitHub Pages URL:
    ```
    https://yourusername.github.io
    ```
@@ -105,8 +123,14 @@ The built files will be in `frontend/dist/`. For GitHub Pages, the workflow hand
 
 ## Troubleshooting
 
-**Site shows blank page**  
-- Check the browser console for 404s. Ensure `VITE_BASE_PATH` matches your repo name (e.g. `/Quiniela/` for repo `Quiniela`).
+**Site shows blank page or directory listing**  
+- Ensure **Settings → Pages → Source** is **GitHub Actions**, not "Deploy from a branch". The branch option serves the repo root, which has no `index.html`.
+- Check the browser console for 404s.
+
+**Assets load from wrong path (MIME type "text/html" errors)**  
+- For a **user/org site** (repo named `yourusername.github.io`): base path is `/`, site at `https://yourusername.github.io/`.
+- For a **project site** (repo named `Quiniela`): base path is `/Quiniela/`, site at `https://yourusername.github.io/Quiniela/`.  
+- The workflow auto-detects this. If your repo is `quinielas-ajedrez.github.io`, it will use base `/`.
 
 **“CORS” or “blocked” errors**  
 - Confirm `CORS_ORIGINS` on Render includes your GitHub Pages URL exactly (no trailing slash).

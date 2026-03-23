@@ -16,6 +16,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class BootstrapRequest(BaseModel):
+    """Promote a user to super-admin (requires BOOTSTRAP_SECRET)."""
+    secret: str
+    username: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
