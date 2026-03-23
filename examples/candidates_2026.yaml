@@ -1,0 +1,299 @@
+# Candidates Tournament 2026 - Cyprus (28 March – 16 April 2026)
+# Pairings from https://en.wikipedia.org/wiki/Candidates_Tournament_2026
+
+name: "Candidates Tournament 2026"
+
+rounds:
+  - round_number: 1
+    round_name: "Round 1"
+    prediction_deadline: "2026-03-28T12:00:00"
+    games:
+      - white_player: "Javokhir Sindarov"
+        black_player: "Andrey Esipenko"
+        white_rating: 2745
+        black_rating: 2698
+      - white_player: "Matthias Blübaum"
+        black_player: "Wei Yi"
+        white_rating: 2698
+        black_rating: 2754
+      - white_player: "R Praggnanandhaa"
+        black_player: "Anish Giri"
+        white_rating: 2741
+        black_rating: 2753
+      - white_player: "Fabiano Caruana"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2795
+        black_rating: 2810
+
+  - round_number: 2
+    round_name: "Round 2"
+    prediction_deadline: "2026-03-29T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2698
+        black_rating: 2810
+      - white_player: "Anish Giri"
+        black_player: "Fabiano Caruana"
+        white_rating: 2753
+        black_rating: 2795
+      - white_player: "Wei Yi"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2754
+        black_rating: 2741
+      - white_player: "Javokhir Sindarov"
+        black_player: "Matthias Blübaum"
+        white_rating: 2745
+        black_rating: 2698
+
+  - round_number: 3
+    round_name: "Round 3"
+    prediction_deadline: "2026-03-30T12:00:00"
+    games:
+      - white_player: "Matthias Blübaum"
+        black_player: "Andrey Esipenko"
+        white_rating: 2698
+        black_rating: 2698
+      - white_player: "R Praggnanandhaa"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2741
+        black_rating: 2745
+      - white_player: "Fabiano Caruana"
+        black_player: "Wei Yi"
+        white_rating: 2795
+        black_rating: 2754
+      - white_player: "Hikaru Nakamura"
+        black_player: "Anish Giri"
+        white_rating: 2810
+        black_rating: 2753
+
+  - round_number: 4
+    round_name: "Round 4"
+    prediction_deadline: "2026-03-31T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "Anish Giri"
+        white_rating: 2698
+        black_rating: 2753
+      - white_player: "Wei Yi"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2754
+        black_rating: 2810
+      - white_player: "Javokhir Sindarov"
+        black_player: "Fabiano Caruana"
+        white_rating: 2745
+        black_rating: 2795
+      - white_player: "Matthias Blübaum"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2698
+        black_rating: 2741
+
+  - round_number: 5
+    round_name: "Round 5"
+    prediction_deadline: "2026-04-02T12:00:00"
+    games:
+      - white_player: "R Praggnanandhaa"
+        black_player: "Andrey Esipenko"
+        white_rating: 2741
+        black_rating: 2698
+      - white_player: "Fabiano Caruana"
+        black_player: "Matthias Blübaum"
+        white_rating: 2795
+        black_rating: 2698
+      - white_player: "Hikaru Nakamura"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2810
+        black_rating: 2745
+      - white_player: "Anish Giri"
+        black_player: "Wei Yi"
+        white_rating: 2753
+        black_rating: 2754
+
+  - round_number: 6
+    round_name: "Round 6"
+    prediction_deadline: "2026-04-03T12:00:00"
+    games:
+      - white_player: "Fabiano Caruana"
+        black_player: "Andrey Esipenko"
+        white_rating: 2795
+        black_rating: 2698
+      - white_player: "Hikaru Nakamura"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2810
+        black_rating: 2741
+      - white_player: "Anish Giri"
+        black_player: "Matthias Blübaum"
+        white_rating: 2753
+        black_rating: 2698
+      - white_player: "Wei Yi"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2754
+        black_rating: 2745
+
+  - round_number: 7
+    round_name: "Round 7"
+    prediction_deadline: "2026-04-04T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "Wei Yi"
+        white_rating: 2698
+        black_rating: 2754
+      - white_player: "Javokhir Sindarov"
+        black_player: "Anish Giri"
+        white_rating: 2745
+        black_rating: 2753
+      - white_player: "Matthias Blübaum"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2698
+        black_rating: 2810
+      - white_player: "R Praggnanandhaa"
+        black_player: "Fabiano Caruana"
+        white_rating: 2741
+        black_rating: 2795
+
+  - round_number: 8
+    round_name: "Round 8"
+    prediction_deadline: "2026-04-06T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2698
+        black_rating: 2745
+      - white_player: "Wei Yi"
+        black_player: "Matthias Blübaum"
+        white_rating: 2754
+        black_rating: 2698
+      - white_player: "Anish Giri"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2753
+        black_rating: 2741
+      - white_player: "Hikaru Nakamura"
+        black_player: "Fabiano Caruana"
+        white_rating: 2810
+        black_rating: 2795
+
+  - round_number: 9
+    round_name: "Round 9"
+    prediction_deadline: "2026-04-07T12:00:00"
+    games:
+      - white_player: "Hikaru Nakamura"
+        black_player: "Andrey Esipenko"
+        white_rating: 2810
+        black_rating: 2698
+      - white_player: "Fabiano Caruana"
+        black_player: "Anish Giri"
+        white_rating: 2795
+        black_rating: 2753
+      - white_player: "R Praggnanandhaa"
+        black_player: "Wei Yi"
+        white_rating: 2741
+        black_rating: 2754
+      - white_player: "Matthias Blübaum"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2698
+        black_rating: 2745
+
+  - round_number: 10
+    round_name: "Round 10"
+    prediction_deadline: "2026-04-08T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "Matthias Blübaum"
+        white_rating: 2698
+        black_rating: 2698
+      - white_player: "Javokhir Sindarov"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2745
+        black_rating: 2741
+      - white_player: "Wei Yi"
+        black_player: "Fabiano Caruana"
+        white_rating: 2754
+        black_rating: 2795
+      - white_player: "Anish Giri"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2753
+        black_rating: 2810
+
+  - round_number: 11
+    round_name: "Round 11"
+    prediction_deadline: "2026-04-10T12:00:00"
+    games:
+      - white_player: "Anish Giri"
+        black_player: "Andrey Esipenko"
+        white_rating: 2753
+        black_rating: 2698
+      - white_player: "Hikaru Nakamura"
+        black_player: "Wei Yi"
+        white_rating: 2810
+        black_rating: 2754
+      - white_player: "Fabiano Caruana"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2795
+        black_rating: 2745
+      - white_player: "R Praggnanandhaa"
+        black_player: "Matthias Blübaum"
+        white_rating: 2741
+        black_rating: 2698
+
+  - round_number: 12
+    round_name: "Round 12"
+    prediction_deadline: "2026-04-11T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2698
+        black_rating: 2741
+      - white_player: "Matthias Blübaum"
+        black_player: "Fabiano Caruana"
+        white_rating: 2698
+        black_rating: 2795
+      - white_player: "Javokhir Sindarov"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2745
+        black_rating: 2810
+      - white_player: "Wei Yi"
+        black_player: "Anish Giri"
+        white_rating: 2754
+        black_rating: 2753
+
+  - round_number: 13
+    round_name: "Round 13"
+    prediction_deadline: "2026-04-13T12:00:00"
+    games:
+      - white_player: "Wei Yi"
+        black_player: "Andrey Esipenko"
+        white_rating: 2754
+        black_rating: 2698
+      - white_player: "Anish Giri"
+        black_player: "Javokhir Sindarov"
+        white_rating: 2753
+        black_rating: 2745
+      - white_player: "Hikaru Nakamura"
+        black_player: "Matthias Blübaum"
+        white_rating: 2810
+        black_rating: 2698
+      - white_player: "Fabiano Caruana"
+        black_player: "R Praggnanandhaa"
+        white_rating: 2795
+        black_rating: 2741
+
+  - round_number: 14
+    round_name: "Round 14"
+    prediction_deadline: "2026-04-14T12:00:00"
+    games:
+      - white_player: "Andrey Esipenko"
+        black_player: "Fabiano Caruana"
+        white_rating: 2698
+        black_rating: 2795
+      - white_player: "R Praggnanandhaa"
+        black_player: "Hikaru Nakamura"
+        white_rating: 2741
+        black_rating: 2810
+      - white_player: "Matthias Blübaum"
+        black_player: "Anish Giri"
+        white_rating: 2698
+        black_rating: 2753
+      - white_player: "Javokhir Sindarov"
+        black_player: "Wei Yi"
+        white_rating: 2745
+        black_rating: 2754

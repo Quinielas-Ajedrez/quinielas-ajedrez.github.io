@@ -149,7 +149,8 @@ WantedBy=multi-user.target
 
 ### Database
 
-SQLite is used by default (`data/quiniela.db`). Ensure the `data/` directory is writable. For higher concurrency, consider PostgreSQL (would require code changes to support `DATABASE_URL`).
+- **SQLite** (default): Uses `data/quiniela.db` when `DATABASE_URL` is not set. Fine for local dev; **ephemeral** on Render free tier (data lost when instance sleeps).
+- **PostgreSQL** (recommended for production): Set `DATABASE_URL` (Render adds this when you link a PostgreSQL database). Data persists across restarts.
 
 ### Admin permissions when deployed
 

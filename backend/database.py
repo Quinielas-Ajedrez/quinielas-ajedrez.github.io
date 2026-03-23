@@ -1,7 +1,9 @@
 """
 Database setup and SQLAlchemy ORM models for persistence.
+Uses PostgreSQL when DATABASE_URL is set (e.g. on Render), otherwise SQLite.
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -113,17 +115,26 @@ class PredictionModel(Base):
     game: Mapped["GameModel"] = relationship("GameModel", back_populates="predictions")
 
 
-# Database URL - SQLite file in project data directory
-DATABASE_DIR = Path(__file__).resolve().parent.parent / "data"
-DATABASE_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_URL = f"sqlite:///{DATABASE_DIR / 'quiniela.db'}"
+# Database URL - PostgreSQL when set (persistent), else SQLite (ephemeral on free tier)
+_database_url = os.getenv("DATABASE_URL")
+if _database_url:
+    # Render and others use postgres://, SQLAlchemy wants postgresql://
+    if _database_url.startswith("postgres://"):
+        _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = _database_url
+    _connect_args = {}
+else:
+    DATABASE_DIR = Path(__file__).resolve().parent.parent / "data"
+    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+    DATABASE_URL = f"sqlite:///{DATABASE_DIR / 'quiniela.db'}"
+    _connect_args = {"check_same_thread": False}
 
 # Engine and session factory
 from sqlalchemy.orm import sessionmaker
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args=_connect_args,
     echo=False,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -137,9 +148,13 @@ def init_db() -> None:
 
 def _migrate_add_is_super_admin() -> None:
     """Add is_super_admin column if it doesn't exist (for existing databases)."""
+    is_postgres = "postgresql" in DATABASE_URL
+    default_val = "FALSE" if is_postgres else "0"
     with engine.connect() as conn:
         try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT 0"))
+            conn.execute(
+                text(f"ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT {default_val}")
+            )
             conn.commit()
         except Exception:
             conn.rollback()

@@ -22,14 +22,21 @@
    - **Build Command:** `uv sync`
    - **Start Command:** `uv run uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 
-6. Add environment variables (Environment tab):
+6. **Add a PostgreSQL database** (keeps data when the app sleeps):
+   - Click **New** → **PostgreSQL**
+   - Name it (e.g. `quiniela-db`), choose free plan, Create
+   - Go back to your Web Service → **Environment**
+   - Click **Add Database** (or **Link Resource**) and select the PostgreSQL instance
+   - Render will add `DATABASE_URL` automatically. Data will now persist across restarts.
+
+7. Add other environment variables (if not already set):
    - `SITE_PASSWORD` = your gate password
-   - `BOOTSTRAP_SECRET` = a long random string (e.g. `openssl rand -hex 32`) - used to promote your first super-admin without Shell
-   - `CORS_ORIGINS` = `https://yourusername.github.io` (you'll add your real GitHub Pages URL in Step 6)
+   - `BOOTSTRAP_SECRET` = a long random string - used to promote your first super-admin
+   - `CORS_ORIGINS` = `https://yourusername.github.io`
 
-7. Click **Create Web Service** and wait for the first deploy.
+8. Click **Create Web Service** (or save) and wait for the first deploy.
 
-8. Copy your service URL, e.g. `https://quiniela-xyz.onrender.com`
+9. Copy your service URL, e.g. `https://quiniela-xyz.onrender.com`
 
 ---
 
@@ -137,3 +144,7 @@ The built files will be in `frontend/dist/`. For GitHub Pages, the workflow hand
 
 **Login / API fails**  
 - Confirm `VITE_API_URL` is correct and the Render service is running.
+
+**Data (users, tournaments) disappears after inactivity**  
+- Render free tier uses ephemeral storage; SQLite data is lost when the instance sleeps.
+- Add a **PostgreSQL database** (New → PostgreSQL), link it to your web service. Render sets `DATABASE_URL` automatically. Redeploy. Data will persist.
