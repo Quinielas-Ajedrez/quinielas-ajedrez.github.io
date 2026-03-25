@@ -15,9 +15,9 @@ export function clearToken(): void {
 
 async function request<T>(
   path: string,
-  options: RequestInit & { json?: unknown } = {}
+  options: RequestInit & { json?: unknown; skipJson?: boolean } = {}
 ): Promise<T> {
-  const { json, ...init } = options
+  const { json, skipJson = false, ...init } = options
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string>),
   }
@@ -37,6 +37,9 @@ async function request<T>(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(err.detail ?? 'Request failed')
+  }
+  if (skipJson || res.status === 204) {
+    return undefined as T
   }
   return res.json()
 }
@@ -127,6 +130,13 @@ export const api = {
           counts: Record<string, number>
         }[]
       }>(`/tournaments/${tournamentId}/prediction-statistics`),
+    delete: (id: number) =>
+      request<void>(`/tournaments/${id}`, { method: 'DELETE', skipJson: true }),
+    deleteRound: (tournamentId: number, roundId: number) =>
+      request<void>(`/tournaments/${tournamentId}/rounds/${roundId}`, {
+        method: 'DELETE',
+        skipJson: true,
+      }),
   },
   predictions: {
     create: (game_id: number, predicted_result: '1-0' | '0-1' | '1/2-1/2') =>

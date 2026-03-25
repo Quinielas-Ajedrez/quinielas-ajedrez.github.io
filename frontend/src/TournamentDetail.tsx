@@ -52,10 +52,14 @@ const RESULT_OPTIONS = ['1-0', '0-1', '1/2-1/2'] as const
 interface TournamentDetailProps {
   tournamentId: number
   isAdmin: boolean
+  /** Super-admin: statistics, delete tournament/round. */
+  isSuperAdmin?: boolean
   onBack: () => void
   onLeaderboard: () => void
   /** Super-admin: opens the per-game prediction statistics view. */
   onStatistics?: () => void
+  /** After super-admin deletes the tournament (navigate away). */
+  onTournamentDeleted?: () => void
   onLogout?: () => void
 }
 
@@ -132,9 +136,11 @@ function ReorderArrows({
 export function TournamentDetail({
   tournamentId,
   isAdmin,
+  isSuperAdmin = false,
   onBack,
   onLeaderboard,
   onStatistics,
+  onTournamentDeleted,
   onLogout,
 }: TournamentDetailProps) {
   const [tournament, setTournament] = useState<Tournament | null>(null)
@@ -186,6 +192,43 @@ export function TournamentDetail({
   const getPrediction = (gameId: number) =>
     predictions.find((p) => p.game_id === gameId)?.predicted_result ?? null
 
+  const handleDeleteTournament = async () => {
+    if (
+      !confirm(
+        'Delete this tournament and all rounds, games, predictions, and related data? This cannot be undone.'
+      )
+    ) {
+      return
+    }
+    try {
+      await api.tournaments.delete(tournamentId)
+      onTournamentDeleted?.()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete tournament')
+    }
+  }
+
+  const handleDeleteRound = async (roundId: number) => {
+    if (
+      !confirm(
+        'Delete this round and all its games and predictions? This cannot be undone.'
+      )
+    ) {
+      return
+    }
+    try {
+      await api.tournaments.deleteRound(tournamentId, roundId)
+      setExpandedRounds((prev) => {
+        const next = new Set(prev)
+        next.delete(roundId)
+        return next
+      })
+      await refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete round')
+    }
+  }
+
   if (loading) return <div style={baseStyles.container}>Loading…</div>
   if (error) return <div style={{ ...baseStyles.container, color: '#c00' }}>{error}</div>
   if (!tournament) return null
@@ -204,6 +247,19 @@ export function TournamentDetail({
             {onStatistics && (
               <button type="button" onClick={onStatistics} style={baseStyles.btn}>
                 Statistics
+              </button>
+            )}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteTournament()}
+                style={{
+                  ...baseStyles.btn,
+                  color: '#a00',
+                  borderColor: '#c77',
+                }}
+              >
+                Delete tournament
               </button>
             )}
             {onLogout && (
@@ -258,14 +314,41 @@ export function TournamentDetail({
               onKeyDown={(e) => e.key === 'Enter' && toggleRound(r.id)}
               style={baseStyles.roundHeader}
             >
-              <span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 {r.round_name} — Deadline: {formatDeadline(r.prediction_deadline)}
                 {deadlinePassed && (
                   <span style={{ color: '#999', marginLeft: '0.5rem' }}>(closed)</span>
                 )}
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#666' }}>
-                {isExpanded ? '▲' : '▼'}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  flexShrink: 0,
+                }}
+              >
+                {isSuperAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDeleteRound(r.id)
+                    }}
+                    style={{
+                      ...baseStyles.btn,
+                      fontSize: '0.75rem',
+                      padding: '0.2rem 0.45rem',
+                      color: '#a00',
+                      borderColor: '#c77',
+                    }}
+                  >
+                    Delete round
+                  </button>
+                )}
+                <span style={{ fontSize: '0.75rem', color: '#666' }}>
+                  {isExpanded ? '▲' : '▼'}
+                </span>
               </span>
             </div>
             {isExpanded && (

@@ -308,20 +308,63 @@ function TournamentList({
           {tournaments.map((t) => (
             <li
               key={t.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelect(t.id)}
-              onKeyDown={(e) => e.key === 'Enter' && onSelect(t.id)}
               style={{
-                padding: '0.75rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
                 marginBottom: '0.5rem',
                 border: '1px solid #e5e4e7',
                 borderRadius: 4,
                 background: '#fff',
-                cursor: 'pointer',
+                overflow: 'hidden',
               }}
             >
-              {t.name}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelect(t.id)}
+                onKeyDown={(e) => e.key === 'Enter' && onSelect(t.id)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '0.75rem 1rem',
+                  cursor: 'pointer',
+                }}
+              >
+                {t.name}
+              </div>
+              {user.is_super_admin && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void (async () => {
+                      if (!confirm(`Delete tournament “${t.name}” and all its data? This cannot be undone.`)) {
+                        return
+                      }
+                      try {
+                        await api.tournaments.delete(t.id)
+                        await refresh()
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : 'Failed to delete')
+                      }
+                    })()
+                  }}
+                  style={{
+                    marginRight: '0.5rem',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.8125rem',
+                    border: '1px solid #c77',
+                    borderRadius: 4,
+                    background: 'transparent',
+                    color: '#a00',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  Delete
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -365,7 +408,9 @@ function AppContent({
       <TournamentDetail
         tournamentId={view.id}
         isAdmin={user.is_admin}
+        isSuperAdmin={user.is_super_admin}
         onBack={() => setView('list')}
+        onTournamentDeleted={() => setView('list')}
         onLeaderboard={() => {
           api.tournaments.get(view.id).then((t) =>
             setView({ type: 'leaderboard', tournamentId: view.id, tournamentName: t.name })

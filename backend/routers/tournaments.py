@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from ..deps import get_current_user, get_db, require_admin, require_super_admin
 from ..repository import (
     apply_tournament_patch,
+    delete_round,
+    delete_tournament,
     get_game_prediction_counts_by_game,
     get_table_prediction_for_user,
     get_tournament,
@@ -94,6 +96,32 @@ def get_tournament_route(
     if t is None:
         raise HTTPException(status_code=404, detail="Tournament not found")
     return _to_response(t)
+
+
+@router.delete(
+    "/{tournament_id}/rounds/{round_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_round_route(
+    tournament_id: int,
+    round_id: int,
+    db: Session = Depends(get_db),
+    _super=Depends(require_super_admin),
+) -> None:
+    ok = delete_round(db, round_id, tournament_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+
+@router.delete("/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tournament_route(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    _super=Depends(require_super_admin),
+) -> None:
+    ok = delete_tournament(db, tournament_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Tournament not found")
 
 
 @router.post("/import", response_model=TournamentResponse)

@@ -356,6 +356,39 @@ def list_tournaments(session: Session) -> list[Tournament]:
     return [_tournament_to_dataclass(t) for t in ts]
 
 
+def delete_tournament(session: Session, tournament_id: int) -> bool:
+    """Delete a tournament and cascaded rounds, games, predictions, players, etc."""
+    t = session.get(TournamentModel, tournament_id)
+    if t is None:
+        return False
+    session.delete(t)
+    session.commit()
+    return True
+
+
+def delete_round(session: Session, round_id: int, tournament_id: int) -> bool:
+    """
+    Delete a round and its games (and predictions). Renumbers remaining rounds
+    to 1..n and syncs canonical tournament players from remaining games.
+    """
+    r = session.get(RoundModel, round_id)
+    if r is None or r.tournament_id != tournament_id:
+        return False
+    session.delete(r)
+    session.flush()
+    remaining = session.scalars(
+        select(RoundModel)
+        .where(RoundModel.tournament_id == tournament_id)
+        .order_by(RoundModel.round_number)
+    ).all()
+    for i, round_obj in enumerate(remaining, start=1):
+        round_obj.round_number = i
+    session.flush()
+    sync_tournament_players(session, tournament_id)
+    session.commit()
+    return True
+
+
 # --- User operations ---
 
 
