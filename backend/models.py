@@ -53,6 +53,15 @@ class Round:
 
 
 @dataclass
+class TournamentPlayer:
+    """Canonical player in a tournament (stable id for table predictions)."""
+
+    id: int
+    name: str
+    name_key: str
+
+
+@dataclass
 class Tournament:
     """A tournament containing multiple rounds."""
 
@@ -63,6 +72,10 @@ class Tournament:
     points_white_win: int = 1  # 1-0
     points_black_win: int = 1  # 0-1
     points_draw: int = 1  # 1/2-1/2
+    points_table_per_rank: int = 1  # per correct position in final table prediction
+    table_prediction_deadline: Optional[datetime] = None
+    final_ranking_player_ids: Optional[List[int]] = None  # actual final order (1st .. last)
+    players: List["TournamentPlayer"] = field(default_factory=list)
 
 
 @dataclass

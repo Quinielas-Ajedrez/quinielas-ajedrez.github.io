@@ -68,6 +68,12 @@ class RoundResponse(BaseModel):
     games: list[GameResponse]
 
 
+class TournamentPlayerResponse(BaseModel):
+    id: int
+    name: str
+    name_key: str
+
+
 class TournamentResponse(BaseModel):
     id: int
     name: str
@@ -75,6 +81,10 @@ class TournamentResponse(BaseModel):
     points_white_win: int = 1
     points_black_win: int = 1
     points_draw: int = 1
+    points_table_per_rank: int = 1
+    table_prediction_deadline: Optional[datetime] = None
+    final_ranking_player_ids: Optional[list[int]] = None
+    players: list[TournamentPlayerResponse] = []
 
 
 class TournamentListItem(BaseModel):
@@ -92,6 +102,11 @@ class TournamentUpdateRequest(BaseModel):
     points_white_win: Optional[int] = Field(None, ge=0, description="Points for correct 1-0")
     points_black_win: Optional[int] = Field(None, ge=0, description="Points for correct 0-1")
     points_draw: Optional[int] = Field(None, ge=0, description="Points for correct draw")
+    points_table_per_rank: Optional[int] = Field(
+        None, ge=0, description="Points per correct rank in final table prediction"
+    )
+    table_prediction_deadline: Optional[datetime] = None
+    final_ranking_player_ids: Optional[list[int]] = None
 
 
 # --- Predictions ---
@@ -134,3 +149,33 @@ class LeaderboardEntry(BaseModel):
 
 class LeaderboardResponse(BaseModel):
     entries: list[LeaderboardEntry]
+
+
+# --- Table prediction ---
+
+
+class TablePredictionCreate(BaseModel):
+    ranking_player_ids: list[int]
+
+
+class TablePredictionResponse(BaseModel):
+    ranking_player_ids: list[int]
+
+
+class TablePredictionGetResponse(BaseModel):
+    ranking_player_ids: Optional[list[int]] = None
+
+
+# --- Super-admin statistics ---
+
+
+class GamePredictionBreakdown(BaseModel):
+    game_id: int
+    white_player: str
+    black_player: str
+    round_name: str
+    counts: dict[str, int]
+
+
+class TournamentPredictionStatisticsResponse(BaseModel):
+    games: list[GamePredictionBreakdown]

@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 from ..deps import get_current_user, get_db
 from ..schemas import LeaderboardEntry, LeaderboardResponse
 from ..evaluator import Evaluator
-from ..repository import get_predictions_for_tournament, get_tournament, get_user_by_id
+from ..repository import (
+    get_predictions_for_tournament,
+    get_table_predictions_map,
+    get_tournament,
+    get_user_by_id,
+)
+from ..table_scoring import compute_all_table_scores
 
 router = APIRouter(prefix="/tournaments", tags=["leaderboard"])
 
@@ -30,13 +36,28 @@ def get_leaderboard(
 
     predictions = get_predictions_for_tournament(db, tournament_id)
     evaluator = Evaluator()
-    scores = evaluator.compute_scores(
+    game_scores = evaluator.compute_scores(
         predictions,
         game_results,
         points_white_win=t.points_white_win,
         points_black_win=t.points_black_win,
         points_draw=t.points_draw,
     )
+    table_preds = get_table_predictions_map(db, tournament_id)
+    actual = t.final_ranking_player_ids
+    if actual:
+        table_scores = compute_all_table_scores(
+            table_preds,
+            actual,
+            t.points_table_per_rank,
+        )
+    else:
+        table_scores = {}
+    all_uids = set(game_scores) | set(table_scores)
+    scores = {
+        uid: game_scores.get(uid, 0) + table_scores.get(uid, 0)
+        for uid in all_uids
+    }
 
     entries = []
     for uid, points in sorted(scores.items(), key=lambda x: -x[1]):

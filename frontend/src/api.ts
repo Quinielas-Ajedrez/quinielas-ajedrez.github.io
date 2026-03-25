@@ -41,6 +41,34 @@ async function request<T>(
   return res.json()
 }
 
+export type TournamentPlayer = { id: number; name: string; name_key: string }
+
+export type TournamentDetailPayload = {
+  id: number
+  name: string
+  points_white_win: number
+  points_black_win: number
+  points_draw: number
+  points_table_per_rank: number
+  table_prediction_deadline: string | null
+  final_ranking_player_ids: number[] | null
+  players: TournamentPlayer[]
+  rounds: {
+    id: number
+    round_number: number
+    round_name: string
+    prediction_deadline: string
+    games: {
+      id: number
+      white_player: string
+      black_player: string
+      white_rating: number
+      black_rating: number
+      result: string | null
+    }[]
+  }[]
+}
+
 export const api = {
   auth: {
     login: (username: string, password: string) =>
@@ -66,28 +94,7 @@ export const api = {
         method: 'POST',
         json: { yaml_content },
       }),
-    get: (id: number) =>
-      request<{
-        id: number
-        name: string
-        points_white_win: number
-        points_black_win: number
-        points_draw: number
-        rounds: {
-          id: number
-          round_number: number
-          round_name: string
-          prediction_deadline: string
-          games: {
-            id: number
-            white_player: string
-            black_player: string
-            white_rating: number
-            black_rating: number
-            result: string | null
-          }[]
-        }[]
-      }>(`/tournaments/${id}`),
+    get: (id: number) => request<TournamentDetailPayload>(`/tournaments/${id}`),
     update: (
       id: number,
       body: {
@@ -96,16 +103,30 @@ export const api = {
         points_white_win?: number
         points_black_win?: number
         points_draw?: number
+        points_table_per_rank?: number
+        table_prediction_deadline?: string | null
+        final_ranking_player_ids?: number[] | null
       }
-    ) =>
+    ) => request<TournamentDetailPayload>(`/tournaments/${id}`, { method: 'PUT', json: body }),
+    getTablePrediction: (tournamentId: number) =>
+      request<{ ranking_player_ids: number[] | null }>(
+        `/tournaments/${tournamentId}/table-prediction`
+      ),
+    saveTablePrediction: (tournamentId: number, ranking_player_ids: number[]) =>
+      request<{ ranking_player_ids: number[] }>(
+        `/tournaments/${tournamentId}/table-prediction`,
+        { method: 'POST', json: { ranking_player_ids } }
+      ),
+    predictionStatistics: (tournamentId: number) =>
       request<{
-        id: number
-        name: string
-        points_white_win: number
-        points_black_win: number
-        points_draw: number
-        rounds: unknown[]
-      }>(`/tournaments/${id}`, { method: 'PUT', json: body }),
+        games: {
+          game_id: number
+          white_player: string
+          black_player: string
+          round_name: string
+          counts: Record<string, number>
+        }[]
+      }>(`/tournaments/${tournamentId}/prediction-statistics`),
   },
   predictions: {
     create: (game_id: number, predicted_result: '1-0' | '0-1' | '1/2-1/2') =>

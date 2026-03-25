@@ -8,7 +8,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, create_engine, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    UniqueConstraint,
+    create_engine,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -45,12 +55,69 @@ class TournamentModel(Base):
     points_white_win: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     points_black_win: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     points_draw: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    points_table_per_rank: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    table_prediction_deadline: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    final_ranking_player_ids: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     rounds: Mapped[list["RoundModel"]] = relationship(
         "RoundModel",
         back_populates="tournament",
         order_by="RoundModel.round_number",
         cascade="all, delete-orphan",
+    )
+    players: Mapped[list["TournamentPlayerModel"]] = relationship(
+        "TournamentPlayerModel",
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+    )
+    table_predictions: Mapped[list["TablePredictionModel"]] = relationship(
+        "TablePredictionModel",
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+    )
+
+
+class TournamentPlayerModel(Base):
+    """Canonical player in a tournament (from YAML games, deduped by normalized name)."""
+
+    __tablename__ = "tournament_players"
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "name_key", name="uq_tournament_player_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tournament_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name_key: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    tournament: Mapped["TournamentModel"] = relationship(
+        "TournamentModel", back_populates="players"
+    )
+
+
+class TablePredictionModel(Base):
+    """User's predicted final ranking (ordered list of player ids)."""
+
+    __tablename__ = "table_predictions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "tournament_id", name="uq_user_tournament_table_pred"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    tournament_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False
+    )
+    ranking_player_ids: Mapped[list] = mapped_column(JSON, nullable=False)
+
+    tournament: Mapped["TournamentModel"] = relationship(
+        "TournamentModel", back_populates="table_predictions"
     )
 
 
@@ -88,6 +155,12 @@ class GameModel(Base):
     )
     white_player: Mapped[str] = mapped_column(String(255), nullable=False)
     black_player: Mapped[str] = mapped_column(String(255), nullable=False)
+    white_player_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("tournament_players.id", ondelete="SET NULL"), nullable=True
+    )
+    black_player_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("tournament_players.id", ondelete="SET NULL"), nullable=True
+    )
     white_rating: Mapped[int] = mapped_column(Integer, nullable=False)
     black_rating: Mapped[int] = mapped_column(Integer, nullable=False)
     result: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
@@ -148,6 +221,7 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _migrate_add_is_super_admin()
     _migrate_add_tournament_scoring()
+    _migrate_add_tournament_table_and_players()
 
 
 def _migrate_add_is_super_admin() -> None:
@@ -178,6 +252,45 @@ def _migrate_add_tournament_scoring() -> None:
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+
+def _migrate_add_tournament_table_and_players() -> None:
+    """Add table prediction columns and game player FK columns for existing DBs."""
+    is_pg = "postgresql" in DATABASE_URL
+
+    def run(sql: str) -> None:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
+    if is_pg:
+        run(
+            "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS points_table_per_rank INTEGER NOT NULL DEFAULT 1"
+        )
+        run(
+            "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS table_prediction_deadline TIMESTAMP"
+        )
+        run(
+            "ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS final_ranking_player_ids JSONB"
+        )
+        run(
+            "ALTER TABLE games ADD COLUMN IF NOT EXISTS white_player_id INTEGER REFERENCES tournament_players(id) ON DELETE SET NULL"
+        )
+        run(
+            "ALTER TABLE games ADD COLUMN IF NOT EXISTS black_player_id INTEGER REFERENCES tournament_players(id) ON DELETE SET NULL"
+        )
+    else:
+        for stmt in (
+            "ALTER TABLE tournaments ADD COLUMN points_table_per_rank INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE tournaments ADD COLUMN table_prediction_deadline DATETIME",
+            "ALTER TABLE tournaments ADD COLUMN final_ranking_player_ids TEXT",
+            "ALTER TABLE games ADD COLUMN white_player_id INTEGER",
+            "ALTER TABLE games ADD COLUMN black_player_id INTEGER",
+        ):
+            run(stmt)
 
 
 def get_db():

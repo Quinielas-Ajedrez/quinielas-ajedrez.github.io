@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AuthPage } from './AuthPage'
 import { LeaderboardPage } from './LeaderboardPage'
+import { StatisticsPage } from './StatisticsPage'
 import { TournamentDetail } from './TournamentDetail'
 import { UsersPage } from './UsersPage'
 import { api, clearToken, getToken } from './api'
@@ -99,6 +100,7 @@ type AppView =
   | 'list'
   | { type: 'tournament'; id: number }
   | { type: 'leaderboard'; tournamentId: number; tournamentName: string }
+  | { type: 'statistics'; tournamentId: number; tournamentName: string }
   | 'users'
 
 function TournamentList({
@@ -369,6 +371,30 @@ function AppContent({
             setView({ type: 'leaderboard', tournamentId: view.id, tournamentName: t.name })
           )
         }}
+        onStatistics={
+          user.is_super_admin
+            ? () => {
+                api.tournaments.get(view.id).then((t) =>
+                  setView({
+                    type: 'statistics',
+                    tournamentId: view.id,
+                    tournamentName: t.name,
+                  })
+                )
+              }
+            : undefined
+        }
+        onLogout={onLogout}
+      />
+    )
+  }
+
+  if (view.type === 'statistics') {
+    return (
+      <StatisticsPage
+        tournamentId={view.tournamentId}
+        tournamentName={view.tournamentName}
+        onBack={() => setView({ type: 'tournament', id: view.tournamentId })}
         onLogout={onLogout}
       />
     )

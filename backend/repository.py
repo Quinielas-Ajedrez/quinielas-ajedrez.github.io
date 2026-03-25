@@ -2,10 +2,11 @@
 Repository layer: converts between dataclasses and ORM, provides persistence operations.
 """
 
+from collections import Counter, defaultdict
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from .database import (
@@ -13,13 +14,20 @@ from .database import (
     PredictionModel,
     RoundModel,
     SessionLocal,
+    TablePredictionModel,
     TournamentModel,
+    TournamentPlayerModel,
     UserModel,
     init_db,
 )
-from .models import Game, Prediction, Round, Tournament, User
+from .models import Game, Prediction, Round, Tournament, TournamentPlayer, User
 
 GameResult = Literal["1-0", "0-1", "1/2-1/2"]
+
+
+def normalize_player_name(name: str) -> str:
+    """Lowercase, trim, collapse internal whitespace for deduplication."""
+    return " ".join(name.strip().lower().split())
 
 
 # --- Conversion: ORM -> dataclass ---
@@ -49,8 +57,18 @@ def _round_to_dataclass(m: RoundModel) -> Round:
     )
 
 
+def _player_to_dataclass(m: TournamentPlayerModel) -> TournamentPlayer:
+    return TournamentPlayer(id=m.id, name=m.name, name_key=m.name_key)
+
+
 def _tournament_to_dataclass(m: TournamentModel) -> Tournament:
     rounds = [_round_to_dataclass(r) for r in m.rounds]
+    players = sorted(
+        [_player_to_dataclass(p) for p in m.players],
+        key=lambda p: p.name_key,
+    )
+    fr = getattr(m, "final_ranking_player_ids", None)
+    final_ids = list(fr) if fr else None
     return Tournament(
         id=m.id,
         name=m.name,
@@ -58,6 +76,10 @@ def _tournament_to_dataclass(m: TournamentModel) -> Tournament:
         points_white_win=getattr(m, "points_white_win", 1) or 1,
         points_black_win=getattr(m, "points_black_win", 1) or 1,
         points_draw=getattr(m, "points_draw", 1) or 1,
+        points_table_per_rank=getattr(m, "points_table_per_rank", 1) or 1,
+        table_prediction_deadline=getattr(m, "table_prediction_deadline", None),
+        final_ranking_player_ids=final_ids,
+        players=players,
     )
 
 
@@ -115,6 +137,87 @@ def _round_to_model(round_obj: Round, tournament_id: int) -> RoundModel:
 # --- Tournament operations ---
 
 
+def sync_tournament_players(session: Session, tournament_id: int) -> None:
+    """
+    Upsert canonical players from game names; wire game FKs.
+    If the set of players (by normalized name) changes, clears table predictions
+    and final ranking.
+    """
+    t = session.get(TournamentModel, tournament_id)
+    if t is None:
+        return
+
+    key_to_display: dict[str, str] = {}
+    for r in t.rounds:
+        for g in r.games:
+            if g.white_player:
+                k = normalize_player_name(g.white_player)
+                key_to_display.setdefault(k, g.white_player.strip())
+            if g.black_player:
+                k = normalize_player_name(g.black_player)
+                key_to_display.setdefault(k, g.black_player.strip())
+
+    existing_rows = list(
+        session.scalars(
+            select(TournamentPlayerModel).where(
+                TournamentPlayerModel.tournament_id == tournament_id
+            )
+        ).all()
+    )
+    snapshot = {p.name_key: p for p in existing_rows}
+    required_keys = set(key_to_display.keys())
+    keys_before = set(snapshot.keys())
+
+    if keys_before != required_keys:
+        session.execute(
+            delete(TablePredictionModel).where(
+                TablePredictionModel.tournament_id == tournament_id
+            )
+        )
+        t.final_ranking_player_ids = None
+
+    for key in sorted(required_keys):
+        display = key_to_display[key]
+        if key in snapshot:
+            p = snapshot[key]
+            if p.name != display:
+                p.name = display
+        else:
+            p = TournamentPlayerModel(
+                tournament_id=tournament_id, name=display, name_key=key
+            )
+            session.add(p)
+
+    session.flush()
+
+    for _, p in list(snapshot.items()):
+        if p.name_key not in required_keys:
+            session.delete(p)
+
+    session.flush()
+
+    rows = list(
+        session.scalars(
+            select(TournamentPlayerModel).where(
+                TournamentPlayerModel.tournament_id == tournament_id
+            )
+        ).all()
+    )
+    key_to_id = {p.name_key: p.id for p in rows}
+    for r in t.rounds:
+        for g in r.games:
+            if g.white_player:
+                nk = normalize_player_name(g.white_player)
+                g.white_player_id = key_to_id.get(nk)
+            else:
+                g.white_player_id = None
+            if g.black_player:
+                nk = normalize_player_name(g.black_player)
+                g.black_player_id = key_to_id.get(nk)
+            else:
+                g.black_player_id = None
+
+
 def save_tournament(session: Session, tournament: Tournament) -> Tournament:
     """
     Save a tournament to the database. Creates or updates.
@@ -128,6 +231,9 @@ def save_tournament(session: Session, tournament: Tournament) -> Tournament:
         points_white_win=tournament.points_white_win,
         points_black_win=tournament.points_black_win,
         points_draw=tournament.points_draw,
+        points_table_per_rank=tournament.points_table_per_rank,
+        table_prediction_deadline=tournament.table_prediction_deadline,
+        final_ranking_player_ids=tournament.final_ranking_player_ids,
     )
     session.add(t)
     session.flush()
@@ -155,6 +261,8 @@ def save_tournament(session: Session, tournament: Tournament) -> Tournament:
             )
             session.add(g)
 
+    session.flush()
+    sync_tournament_players(session, t.id)
     session.commit()
     session.refresh(t)
     return _tournament_to_dataclass(t)
@@ -170,6 +278,9 @@ def _update_tournament(session: Session, tournament: Tournament) -> Tournament:
     t.points_white_win = tournament.points_white_win
     t.points_black_win = tournament.points_black_win
     t.points_draw = tournament.points_draw
+    t.points_table_per_rank = tournament.points_table_per_rank
+    t.table_prediction_deadline = tournament.table_prediction_deadline
+    t.final_ranking_player_ids = tournament.final_ranking_player_ids
 
     # Update rounds and games - for simplicity we replace all
     # (In a full implementation you might do a smarter merge)
@@ -201,6 +312,8 @@ def _update_tournament(session: Session, tournament: Tournament) -> Tournament:
             )
             session.add(g)
 
+    session.flush()
+    sync_tournament_players(session, t.id)
     session.commit()
     session.refresh(t)
     return _tournament_to_dataclass(t)
@@ -446,3 +559,140 @@ def get_predictions_for_tournament(
         )
     ).unique().all()
     return [(p.user_id, p.game_id, p.predicted_result) for p in preds]
+
+
+# --- Table predictions & admin patches ---
+
+ALLOWED_TOURNAMENT_PATCH_KEYS = frozenset(
+    {
+        "points_white_win",
+        "points_black_win",
+        "points_draw",
+        "points_table_per_rank",
+        "table_prediction_deadline",
+        "final_ranking_player_ids",
+    }
+)
+
+
+def get_tournament_player_ids(session: Session, tournament_id: int) -> set[int]:
+    ids = session.scalars(
+        select(TournamentPlayerModel.id).where(
+            TournamentPlayerModel.tournament_id == tournament_id
+        )
+    ).all()
+    return set(ids)
+
+
+def assert_valid_final_ranking(
+    session: Session, tournament_id: int, ids: list[int]
+) -> None:
+    valid = get_tournament_player_ids(session, tournament_id)
+    if set(ids) != valid or len(ids) != len(valid):
+        raise ValueError(
+            "Final ranking must list each tournament player exactly once"
+        )
+
+
+def get_table_prediction_for_user(
+    session: Session, user_id: int, tournament_id: int
+) -> Optional[list[int]]:
+    row = session.scalars(
+        select(TablePredictionModel).where(
+            TablePredictionModel.user_id == user_id,
+            TablePredictionModel.tournament_id == tournament_id,
+        )
+    ).first()
+    return list(row.ranking_player_ids) if row else None
+
+
+def get_table_predictions_map(
+    session: Session, tournament_id: int
+) -> dict[int, list[int]]:
+    rows = session.scalars(
+        select(TablePredictionModel).where(
+            TablePredictionModel.tournament_id == tournament_id
+        )
+    ).all()
+    return {r.user_id: list(r.ranking_player_ids) for r in rows}
+
+
+def save_table_prediction(
+    session: Session,
+    user_id: int,
+    tournament_id: int,
+    ranking_player_ids: list[int],
+) -> TablePredictionModel:
+    t = session.get(TournamentModel, tournament_id)
+    if t is None:
+        raise ValueError("Tournament not found")
+    if t.table_prediction_deadline is None:
+        raise ValueError("Table prediction is not open (admin must set a deadline)")
+    if datetime.utcnow() > t.table_prediction_deadline:
+        raise ValueError("Table prediction deadline has passed")
+    assert_valid_final_ranking(session, tournament_id, ranking_player_ids)
+
+    existing = session.scalars(
+        select(TablePredictionModel).where(
+            TablePredictionModel.user_id == user_id,
+            TablePredictionModel.tournament_id == tournament_id,
+        )
+    ).first()
+    if existing:
+        existing.ranking_player_ids = ranking_player_ids
+        session.commit()
+        session.refresh(existing)
+        return existing
+    row = TablePredictionModel(
+        user_id=user_id,
+        tournament_id=tournament_id,
+        ranking_player_ids=ranking_player_ids,
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+def apply_tournament_patch(
+    session: Session, tournament_id: int, patch: dict[str, Any]
+) -> Optional[Tournament]:
+    """Apply allowed tournament fields from patch (e.g. model_dump(exclude_unset))."""
+    t = session.get(TournamentModel, tournament_id)
+    if t is None:
+        return None
+    for k, v in patch.items():
+        if k not in ALLOWED_TOURNAMENT_PATCH_KEYS:
+            continue
+        if k == "final_ranking_player_ids" and v is not None:
+            assert_valid_final_ranking(session, tournament_id, list(v))
+        setattr(t, k, v)
+    session.commit()
+    session.refresh(t)
+    return _tournament_to_dataclass(t)
+
+
+def get_game_prediction_counts_by_game(
+    session: Session, tournament_id: int
+) -> dict[int, dict[str, int]]:
+    """For each game id, count predictions by result string."""
+    preds = session.scalars(
+        select(PredictionModel)
+        .join(GameModel, PredictionModel.game_id == GameModel.id)
+        .join(RoundModel, GameModel.round_id == RoundModel.id)
+        .where(
+            RoundModel.tournament_id == tournament_id,
+            GameModel.is_deleted == False,  # noqa: E712
+        )
+    ).all()
+    by_game: dict[int, Counter[str]] = defaultdict(Counter)
+    for p in preds:
+        by_game[p.game_id][p.predicted_result] += 1
+    out: dict[int, dict[str, int]] = {}
+    for gid, ctr in by_game.items():
+        out[gid] = {
+            "1-0": ctr.get("1-0", 0),
+            "0-1": ctr.get("0-1", 0),
+            "1/2-1/2": ctr.get("1/2-1/2", 0),
+        }
+    return out

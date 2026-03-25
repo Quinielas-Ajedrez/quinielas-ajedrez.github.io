@@ -5,16 +5,25 @@ from dataclasses import replace
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..deps import get_current_user, get_db, require_admin
+from ..deps import get_current_user, get_db, require_admin, require_super_admin
 from ..repository import (
+    apply_tournament_patch,
+    get_game_prediction_counts_by_game,
+    get_table_prediction_for_user,
     get_tournament,
     list_tournaments,
-    patch_tournament_scoring,
+    save_table_prediction,
     save_tournament,
 )
 from ..schemas import (
+    GamePredictionBreakdown,
+    TablePredictionCreate,
+    TablePredictionGetResponse,
+    TablePredictionResponse,
     TournamentImportRequest,
     TournamentListItem,
+    TournamentPlayerResponse,
+    TournamentPredictionStatisticsResponse,
     TournamentResponse,
     TournamentUpdateRequest,
 )
@@ -48,6 +57,10 @@ def _to_response(t):
                 "games": games_data,
             }
         )
+    players_data = [
+        TournamentPlayerResponse(id=p.id, name=p.name, name_key=p.name_key)
+        for p in t.players
+    ]
     return TournamentResponse(
         id=t.id,
         name=t.name,
@@ -55,6 +68,10 @@ def _to_response(t):
         points_white_win=t.points_white_win,
         points_black_win=t.points_black_win,
         points_draw=t.points_draw,
+        points_table_per_rank=t.points_table_per_rank,
+        table_prediction_deadline=t.table_prediction_deadline,
+        final_ranking_player_ids=t.final_ranking_player_ids,
+        players=players_data,
     )
 
 
@@ -107,8 +124,6 @@ def update_tournament(
     if existing is None:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    updated = existing
-
     if body.yaml_content is not None:
         try:
             parsed = parse_tournament_yaml(body.yaml_content)
@@ -121,44 +136,111 @@ def update_tournament(
                 points_white_win=existing.points_white_win,
                 points_black_win=existing.points_black_win,
                 points_draw=existing.points_draw,
+                points_table_per_rank=existing.points_table_per_rank,
+                table_prediction_deadline=existing.table_prediction_deadline,
+                final_ranking_player_ids=existing.final_ranking_player_ids,
             )
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid YAML: {e!s}",
             )
-
-    if body.name is not None:
-        updated = replace(updated, name=body.name)
-
-    if body.points_white_win is not None:
-        updated = replace(updated, points_white_win=body.points_white_win)
-    if body.points_black_win is not None:
-        updated = replace(updated, points_black_win=body.points_black_win)
-    if body.points_draw is not None:
-        updated = replace(updated, points_draw=body.points_draw)
-
-    if body.yaml_content is not None or body.name is not None:
         saved = save_tournament(db, updated)
         return _to_response(saved)
 
-    if (
-        body.points_white_win is not None
-        or body.points_black_win is not None
-        or body.points_draw is not None
-    ):
-        saved = patch_tournament_scoring(
-            db,
-            tournament_id,
-            points_white_win=body.points_white_win,
-            points_black_win=body.points_black_win,
-            points_draw=body.points_draw,
-        )
+    if body.name is not None:
+        updated = replace(existing, name=body.name)
+        saved = save_tournament(db, updated)
+        return _to_response(saved)
+
+    patch_data = body.model_dump(exclude_unset=True)
+    patch_data.pop("yaml_content", None)
+    patch_data.pop("name", None)
+    if patch_data:
+        try:
+            saved = apply_tournament_patch(db, tournament_id, patch_data)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
         if saved is None:
             raise HTTPException(status_code=404, detail="Tournament not found")
         return _to_response(saved)
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Provide name, yaml_content, or scoring fields",
+        detail="Provide name, yaml_content, or fields to update",
     )
+
+
+@router.post(
+    "/{tournament_id}/table-prediction",
+    response_model=TablePredictionResponse,
+)
+def create_table_prediction(
+    tournament_id: int,
+    body: TablePredictionCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> TablePredictionResponse:
+    try:
+        save_table_prediction(
+            db, user.id, tournament_id, body.ranking_player_ids
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    return TablePredictionResponse(ranking_player_ids=body.ranking_player_ids)
+
+
+@router.get(
+    "/{tournament_id}/table-prediction",
+    response_model=TablePredictionGetResponse,
+)
+def read_table_prediction(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> TablePredictionGetResponse:
+    t = get_tournament(db, tournament_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ranking = get_table_prediction_for_user(db, user.id, tournament_id)
+    return TablePredictionGetResponse(ranking_player_ids=ranking)
+
+
+@router.get(
+    "/{tournament_id}/prediction-statistics",
+    response_model=TournamentPredictionStatisticsResponse,
+)
+def prediction_statistics(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    _super=Depends(require_super_admin),
+) -> TournamentPredictionStatisticsResponse:
+    t = get_tournament(db, tournament_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    counts = get_game_prediction_counts_by_game(db, tournament_id)
+    games_out: list[GamePredictionBreakdown] = []
+    for r in t.rounds:
+        for g in r.games:
+            if g.is_deleted:
+                continue
+            c = counts.get(
+                g.id,
+                {"1-0": 0, "0-1": 0, "1/2-1/2": 0},
+            )
+            games_out.append(
+                GamePredictionBreakdown(
+                    game_id=g.id,
+                    white_player=g.white_player,
+                    black_player=g.black_player,
+                    round_name=r.round_name,
+                    counts=c,
+                )
+            )
+    return TournamentPredictionStatisticsResponse(games=games_out)
