@@ -125,4 +125,14 @@ export const api = {
         json: { result },
       }),
   },
+  rounds: {
+    patch: (
+      roundId: number,
+      body: { round_name?: string; prediction_deadline?: string }
+    ) =>
+      request<{ id: number; round_name: string; prediction_deadline: string }>(`/rounds/${roundId}`, {
+        method: 'PATCH',
+        json: body,
+      }),
+  },
 }

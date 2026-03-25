@@ -57,6 +57,13 @@ function formatDeadline(iso: string) {
   }
 }
 
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const RESULT_OPTIONS = ['1-0', '0-1', '1/2-1/2'] as const
 
 interface TournamentDetailProps {
@@ -164,6 +171,13 @@ export function TournamentDetail({ tournamentId, isAdmin, onBack, onLeaderboard,
             </div>
             {isExpanded && (
               <div style={{ marginLeft: '1rem', marginBottom: '1rem' }}>
+                {isAdmin && (
+                  <AdminRoundDeadline
+                    roundId={r.id}
+                    predictionDeadline={r.prediction_deadline}
+                    onSaved={refresh}
+                  />
+                )}
                 {r.games.map((g) => (
                   <GameRow
                     key={g.id}
@@ -370,6 +384,79 @@ function AdminResultInput({
         }}
       >
         {saving ? '…' : 'Set'}
+      </button>
+    </div>
+  )
+}
+
+function AdminRoundDeadline({
+  roundId,
+  predictionDeadline,
+  onSaved,
+}: {
+  roundId: number
+  predictionDeadline: string
+  onSaved: () => void
+}) {
+  const [value, setValue] = useState(() => toDatetimeLocalValue(predictionDeadline))
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setValue(toDatetimeLocalValue(predictionDeadline))
+  }, [predictionDeadline])
+
+  const handleSave = async () => {
+    if (!value) return
+    setSaving(true)
+    try {
+      const iso = new Date(value).toISOString()
+      await api.rounds.patch(roundId, { prediction_deadline: iso })
+      await onSaved()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update deadline')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0.5rem',
+        alignItems: 'center',
+        marginBottom: '0.75rem',
+        padding: '0.5rem 0.75rem',
+        background: '#f5f5f5',
+        borderRadius: 4,
+        border: '1px solid #e5e4e7',
+      }}
+    >
+      <span style={{ fontSize: '0.8125rem', color: '#555' }}>Prediction deadline</span>
+      <input
+        type="datetime-local"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        style={{
+          padding: '0.25rem 0.5rem',
+          fontSize: '0.875rem',
+          border: '1px solid #ccc',
+          borderRadius: 4,
+        }}
+      />
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving || !value}
+        style={{
+          ...baseStyles.btn,
+          padding: '0.25rem 0.5rem',
+          background: value ? '#333' : '#ccc',
+          color: '#fff',
+        }}
+      >
+        {saving ? 'Saving…' : 'Save deadline'}
       </button>
     </div>
   )
