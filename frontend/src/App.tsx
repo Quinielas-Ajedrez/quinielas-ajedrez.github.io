@@ -377,7 +377,13 @@ function AppContent({
   user,
   onLogout,
 }: {
-  user: { name: string; username: string; is_admin: boolean; is_super_admin: boolean }
+  user: {
+    id: number
+    name: string
+    username: string
+    is_admin: boolean
+    is_super_admin: boolean
+  }
   onLogout: () => void
 }) {
   const [view, setView] = useState<AppView>('list')
@@ -397,6 +403,7 @@ function AppContent({
   if (view === 'users') {
     return (
       <UsersPage
+        currentUserId={user.id}
         onBack={() => setView('list')}
         onLogout={onLogout}
       />
@@ -456,7 +463,13 @@ function AppContent({
 
 function App() {
   const [pastGate, setPastGate] = useState<boolean | null>(null)
-  const [user, setUser] = useState<{ name: string; username: string; is_admin: boolean; is_super_admin: boolean } | null>(null)
+  const [user, setUser] = useState<{
+    id: number
+    name: string
+    username: string
+    is_admin: boolean
+    is_super_admin: boolean
+  } | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {

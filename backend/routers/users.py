@@ -1,13 +1,27 @@
 """User management endpoints (super-admin only)."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..deps import get_db, require_super_admin
-from ..repository import get_user_by_id, list_users, save_user
+from ..models import User
+from ..repository import delete_user, get_user_by_id, list_users, save_user
 from ..schemas import UserResponse, UserUpdateRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def _delete_user_if_allowed(
+    user_id: int, db: Session, current: User
+) -> None:
+    if current.id is not None and user_id == current.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account",
+        )
+    ok = delete_user(db, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="User not found")
 
 
 @router.get("", response_model=list[UserResponse])
@@ -66,3 +80,23 @@ def update_user(
         is_admin=updated.is_admin,
         is_super_admin=updated.is_super_admin,
     )
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user_route(
+    user_id: int,
+    current: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+) -> None:
+    """Remove a user and their predictions. Super-admin only; cannot delete yourself."""
+    _delete_user_if_allowed(user_id, db, current)
+
+
+@router.post("/{user_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+def post_delete_user(
+    user_id: int,
+    current: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+) -> None:
+    """Same as DELETE /{user_id}; for proxies that block DELETE."""
+    _delete_user_if_allowed(user_id, db, current)

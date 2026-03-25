@@ -10,11 +10,13 @@ type UserRow = {
 }
 
 interface UsersPageProps {
+  /** Logged-in user (to disable deleting yourself). */
+  currentUserId: number
   onBack: () => void
   onLogout?: () => void
 }
 
-export function UsersPage({ onBack, onLogout }: UsersPageProps) {
+export function UsersPage({ currentUserId, onBack, onLogout }: UsersPageProps) {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -40,6 +42,23 @@ export function UsersPage({ onBack, onLogout }: UsersPageProps) {
       )
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to update')
+    }
+  }
+
+  const deleteUser = async (u: UserRow) => {
+    if (u.id === currentUserId) return
+    if (
+      !confirm(
+        `Delete user “${u.name}” (@${u.username})? All their predictions and table picks will be removed. This cannot be undone.`
+      )
+    ) {
+      return
+    }
+    try {
+      await api.users.delete(u.id)
+      setUsers((prev) => prev.filter((x) => x.id !== u.id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete user')
     }
   }
 
@@ -116,23 +135,42 @@ export function UsersPage({ onBack, onLogout }: UsersPageProps) {
                   </span>
                 )}
               </span>
-              {!u.is_super_admin && (
-                <button
-                  type="button"
-                  onClick={() => toggleAdmin(u)}
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.875rem',
-                    border: '1px solid #999',
-                    borderRadius: 4,
-                    background: u.is_admin ? '#333' : 'transparent',
-                    color: u.is_admin ? '#fff' : '#333',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {u.is_admin ? 'Revoke admin' : 'Make admin'}
-                </button>
-              )}
+              <span style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {!u.is_super_admin && (
+                  <button
+                    type="button"
+                    onClick={() => void toggleAdmin(u)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.875rem',
+                      border: '1px solid #999',
+                      borderRadius: 4,
+                      background: u.is_admin ? '#333' : 'transparent',
+                      color: u.is_admin ? '#fff' : '#333',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {u.is_admin ? 'Revoke admin' : 'Make admin'}
+                  </button>
+                )}
+                {u.id !== currentUserId && (
+                  <button
+                    type="button"
+                    onClick={() => void deleteUser(u)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.875rem',
+                      border: '1px solid #c77',
+                      borderRadius: 4,
+                      background: 'transparent',
+                      color: '#a00',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </span>
             </li>
           ))}
         </ul>

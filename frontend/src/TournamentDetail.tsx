@@ -585,6 +585,7 @@ function AdminScoringPanel({
   const [pb, setPb] = useState(String(pointsBlackWin))
   const [pd, setPd] = useState(String(pointsDraw))
   const [saving, setSaving] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     setPw(String(pointsWhiteWin))
@@ -619,69 +620,86 @@ function AdminScoringPanel({
     <div
       style={{
         marginBottom: '1rem',
-        padding: '0.75rem 1rem',
         border: '1px solid #e5e4e7',
         borderRadius: 4,
-        background: '#fafafa',
+        overflow: 'hidden',
+        background: '#fff',
       }}
     >
-      <h3 style={{ fontSize: '1rem', margin: '0 0 0.5rem 0' }}>Scoring</h3>
-      <p style={{ fontSize: '0.8125rem', color: '#666', marginBottom: '0.75rem' }}>
-        Points for each correct prediction: white win (1-0), black win (0-1), draw (½-½).
-      </p>
       <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => e.key === 'Enter' && setExpanded((v) => !v)}
         style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'center',
-          marginBottom: '0.5rem',
+          ...baseStyles.roundHeader,
+          marginBottom: 0,
+          border: 'none',
+          borderRadius: 0,
         }}
       >
-        <label style={{ fontSize: '0.875rem' }}>
-          1-0{' '}
-          <input
-            type="number"
-            min={0}
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
-          />
-        </label>
-        <label style={{ fontSize: '0.875rem' }}>
-          0-1{' '}
-          <input
-            type="number"
-            min={0}
-            value={pb}
-            onChange={(e) => setPb(e.target.value)}
-            style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
-          />
-        </label>
-        <label style={{ fontSize: '0.875rem' }}>
-          Draw{' '}
-          <input
-            type="number"
-            min={0}
-            value={pd}
-            onChange={(e) => setPd(e.target.value)}
-            style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            ...baseStyles.btn,
-            padding: '0.35rem 0.75rem',
-            background: '#333',
-            color: '#fff',
-          }}
-        >
-          {saving ? 'Saving…' : 'Save scoring'}
-        </button>
+        <span style={{ fontSize: '1rem', fontWeight: 600 }}>Scoring</span>
+        <span style={{ fontSize: '0.75rem', color: '#666' }}>{expanded ? '▲' : '▼'}</span>
       </div>
+      {expanded && (
+        <div style={{ padding: '0.75rem 1rem', background: '#fafafa', borderTop: '1px solid #e5e4e7' }}>
+          <p style={{ fontSize: '0.8125rem', color: '#666', margin: '0 0 0.75rem 0' }}>
+            Points for each correct prediction: white win (1-0), black win (0-1), draw (½-½).
+          </p>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              alignItems: 'center',
+            }}
+          >
+            <label style={{ fontSize: '0.875rem' }}>
+              1-0{' '}
+              <input
+                type="number"
+                min={0}
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
+              />
+            </label>
+            <label style={{ fontSize: '0.875rem' }}>
+              0-1{' '}
+              <input
+                type="number"
+                min={0}
+                value={pb}
+                onChange={(e) => setPb(e.target.value)}
+                style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
+              />
+            </label>
+            <label style={{ fontSize: '0.875rem' }}>
+              Draw{' '}
+              <input
+                type="number"
+                min={0}
+                value={pd}
+                onChange={(e) => setPd(e.target.value)}
+                style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                ...baseStyles.btn,
+                padding: '0.35rem 0.75rem',
+                background: '#333',
+                color: '#fff',
+              }}
+            >
+              {saving ? 'Saving…' : 'Save scoring'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

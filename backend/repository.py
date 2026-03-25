@@ -457,6 +457,16 @@ def get_user_by_username(session: Session, username: str) -> Optional[User]:
     return _user_to_dataclass(u) if u else None
 
 
+def delete_user(session: Session, user_id: int) -> bool:
+    """Delete a user. Predictions and table_predictions CASCADE in the DB."""
+    u = session.get(UserModel, user_id)
+    if u is None:
+        return False
+    session.delete(u)
+    session.commit()
+    return True
+
+
 # --- Game operations (soft-delete, update result) ---
 
 

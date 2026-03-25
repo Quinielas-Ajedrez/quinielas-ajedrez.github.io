@@ -224,6 +224,26 @@ export const api = {
         `/users/${userId}`,
         { method: 'PATCH', json: { is_admin: isAdmin } }
       ),
+    /** POST …/delete first; falls back to DELETE (see tournaments.delete). */
+    delete: async (userId: number) => {
+      try {
+        await request<void>(`/users/${userId}/delete`, { method: 'POST', skipJson: true })
+        return
+      } catch (e) {
+        if (!(e instanceof Error) || e.message !== 'Not Found') throw e
+      }
+      try {
+        await request<void>(`/users/${userId}`, { method: 'DELETE', skipJson: true })
+      } catch (e2) {
+        const m = e2 instanceof Error ? e2.message : ''
+        if (m === 'Method Not Allowed' || m.includes('Not Allowed')) {
+          throw new Error(
+            'User delete is not available on this API. Restart uvicorn with the latest backend code.'
+          )
+        }
+        throw e2
+      }
+    },
   },
   games: {
     updateResult: (gameId: number, result: '1-0' | '0-1' | '1/2-1/2') =>
