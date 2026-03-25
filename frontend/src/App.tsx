@@ -333,7 +333,7 @@ function TournamentList({
               >
                 {t.name}
               </div>
-              {user.is_super_admin && (
+              {user.is_admin && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -408,7 +408,6 @@ function AppContent({
       <TournamentDetail
         tournamentId={view.id}
         isAdmin={user.is_admin}
-        isSuperAdmin={user.is_super_admin}
         onBack={() => setView('list')}
         onTournamentDeleted={() => setView('list')}
         onLeaderboard={() => {

@@ -356,11 +356,26 @@ def list_tournaments(session: Session) -> list[Tournament]:
     return [_tournament_to_dataclass(t) for t in ts]
 
 
+def _delete_predictions_for_game_ids(session: Session, game_ids: list[int]) -> None:
+    """Remove predictions before games are deleted (game_id is NOT NULL; ORM may try to nullify)."""
+    if not game_ids:
+        return
+    session.execute(delete(PredictionModel).where(PredictionModel.game_id.in_(game_ids)))
+
+
 def delete_tournament(session: Session, tournament_id: int) -> bool:
     """Delete a tournament and cascaded rounds, games, predictions, players, etc."""
     t = session.get(TournamentModel, tournament_id)
     if t is None:
         return False
+    game_ids = list(
+        session.scalars(
+            select(GameModel.id)
+            .join(RoundModel, GameModel.round_id == RoundModel.id)
+            .where(RoundModel.tournament_id == tournament_id)
+        ).all()
+    )
+    _delete_predictions_for_game_ids(session, game_ids)
     session.delete(t)
     session.commit()
     return True
@@ -374,6 +389,10 @@ def delete_round(session: Session, round_id: int, tournament_id: int) -> bool:
     r = session.get(RoundModel, round_id)
     if r is None or r.tournament_id != tournament_id:
         return False
+    game_ids = list(
+        session.scalars(select(GameModel.id).where(GameModel.round_id == round_id)).all()
+    )
+    _delete_predictions_for_game_ids(session, game_ids)
     session.delete(r)
     session.flush()
     remaining = session.scalars(

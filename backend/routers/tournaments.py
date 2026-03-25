@@ -86,44 +86,6 @@ def list_tournaments_route(
     return [TournamentListItem(id=t.id, name=t.name) for t in tournaments]
 
 
-@router.get("/{tournament_id}", response_model=TournamentResponse)
-def get_tournament_route(
-    tournament_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-) -> TournamentResponse:
-    t = get_tournament(db, tournament_id)
-    if t is None:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-    return _to_response(t)
-
-
-@router.delete(
-    "/{tournament_id}/rounds/{round_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_round_route(
-    tournament_id: int,
-    round_id: int,
-    db: Session = Depends(get_db),
-    _super=Depends(require_super_admin),
-) -> None:
-    ok = delete_round(db, round_id, tournament_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Round not found")
-
-
-@router.delete("/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_tournament_route(
-    tournament_id: int,
-    db: Session = Depends(get_db),
-    _super=Depends(require_super_admin),
-) -> None:
-    ok = delete_tournament(db, tournament_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-
-
 @router.post("/import", response_model=TournamentResponse)
 def import_tournament(
     body: TournamentImportRequest,
@@ -139,6 +101,72 @@ def import_tournament(
         )
     saved = save_tournament(db, tournament)
     return _to_response(saved)
+
+
+@router.delete(
+    "/{tournament_id}/rounds/{round_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_round_route(
+    tournament_id: int,
+    round_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> None:
+    ok = delete_round(db, round_id, tournament_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+
+@router.delete("/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tournament_route(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> None:
+    ok = delete_tournament(db, tournament_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+
+@router.post("/{tournament_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+def post_delete_tournament(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> None:
+    """Same as DELETE /{tournament_id}; use when a proxy blocks DELETE (405)."""
+    ok = delete_tournament(db, tournament_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+
+@router.post(
+    "/{tournament_id}/rounds/{round_id}/delete",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def post_delete_round(
+    tournament_id: int,
+    round_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> None:
+    """Same as DELETE /…/rounds/{round_id}; use when a proxy blocks DELETE (405)."""
+    ok = delete_round(db, round_id, tournament_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+
+@router.get("/{tournament_id}", response_model=TournamentResponse)
+def get_tournament_route(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> TournamentResponse:
+    t = get_tournament(db, tournament_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    return _to_response(t)
 
 
 @router.put("/{tournament_id}", response_model=TournamentResponse)

@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+/** Use `||` so empty `VITE_API_URL=""` still defaults to `/api` (see Vite base URL). */
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 const TOKEN_KEY = 'quiniela_token'
 
 export function getToken(): string | null {
@@ -11,6 +12,18 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY)
+}
+
+function detailMessage(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e) =>
+        e && typeof e === 'object' && 'msg' in e ? String((e as { msg: unknown }).msg) : JSON.stringify(e)
+      )
+      .join(' ')
+  }
+  return fallback
 }
 
 async function request<T>(
@@ -36,7 +49,7 @@ async function request<T>(
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail ?? 'Request failed')
+    throw new Error(detailMessage(err.detail, res.statusText || 'Request failed'))
   }
   if (skipJson || res.status === 204) {
     return undefined as T
@@ -130,13 +143,55 @@ export const api = {
           counts: Record<string, number>
         }[]
       }>(`/tournaments/${tournamentId}/prediction-statistics`),
-    delete: (id: number) =>
-      request<void>(`/tournaments/${id}`, { method: 'DELETE', skipJson: true }),
-    deleteRound: (tournamentId: number, roundId: number) =>
-      request<void>(`/tournaments/${tournamentId}/rounds/${roundId}`, {
-        method: 'DELETE',
-        skipJson: true,
-      }),
+    /**
+     * POST /…/delete first (some proxies block DELETE). If that route is missing (404 Not Found),
+     * fall back to DELETE /…/{id}. If the API process is stale, DELETE returns 405 Method Not Allowed
+     * because only GET is registered for that path — restart uvicorn with the current backend code.
+     */
+    delete: async (id: number) => {
+      try {
+        await request<void>(`/tournaments/${id}/delete`, { method: 'POST', skipJson: true })
+        return
+      } catch (e) {
+        if (!(e instanceof Error) || e.message !== 'Not Found') throw e
+      }
+      try {
+        await request<void>(`/tournaments/${id}`, { method: 'DELETE', skipJson: true })
+      } catch (e2) {
+        const m = e2 instanceof Error ? e2.message : ''
+        if (m === 'Method Not Allowed' || m.includes('Not Allowed')) {
+          throw new Error(
+            'The API server is running old code without tournament delete routes. Stop uvicorn and start it again from the project root: uv run uvicorn backend.main:app --reload'
+          )
+        }
+        throw e2
+      }
+    },
+    deleteRound: async (tournamentId: number, roundId: number) => {
+      try {
+        await request<void>(`/tournaments/${tournamentId}/rounds/${roundId}/delete`, {
+          method: 'POST',
+          skipJson: true,
+        })
+        return
+      } catch (e) {
+        if (!(e instanceof Error) || e.message !== 'Not Found') throw e
+      }
+      try {
+        await request<void>(`/tournaments/${tournamentId}/rounds/${roundId}`, {
+          method: 'DELETE',
+          skipJson: true,
+        })
+      } catch (e2) {
+        const m = e2 instanceof Error ? e2.message : ''
+        if (m === 'Method Not Allowed' || m.includes('Not Allowed')) {
+          throw new Error(
+            'The API server is running old code without round delete routes. Stop uvicorn and start it again from the project root: uv run uvicorn backend.main:app --reload'
+          )
+        }
+        throw e2
+      }
+    },
   },
   predictions: {
     create: (game_id: number, predicted_result: '1-0' | '0-1' | '1/2-1/2') =>

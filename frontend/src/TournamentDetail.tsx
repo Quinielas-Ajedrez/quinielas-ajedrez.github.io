@@ -52,13 +52,11 @@ const RESULT_OPTIONS = ['1-0', '0-1', '1/2-1/2'] as const
 interface TournamentDetailProps {
   tournamentId: number
   isAdmin: boolean
-  /** Super-admin: statistics, delete tournament/round. */
-  isSuperAdmin?: boolean
   onBack: () => void
   onLeaderboard: () => void
   /** Super-admin: opens the per-game prediction statistics view. */
   onStatistics?: () => void
-  /** After super-admin deletes the tournament (navigate away). */
+  /** After an admin deletes the tournament (navigate away). */
   onTournamentDeleted?: () => void
   onLogout?: () => void
 }
@@ -136,7 +134,6 @@ function ReorderArrows({
 export function TournamentDetail({
   tournamentId,
   isAdmin,
-  isSuperAdmin = false,
   onBack,
   onLeaderboard,
   onStatistics,
@@ -249,7 +246,7 @@ export function TournamentDetail({
                 Statistics
               </button>
             )}
-            {isSuperAdmin && (
+            {isAdmin && (
               <button
                 type="button"
                 onClick={() => void handleDeleteTournament()}
@@ -328,7 +325,7 @@ export function TournamentDetail({
                   flexShrink: 0,
                 }}
               >
-                {isSuperAdmin && (
+                {isAdmin && (
                   <button
                     type="button"
                     onClick={(e) => {
