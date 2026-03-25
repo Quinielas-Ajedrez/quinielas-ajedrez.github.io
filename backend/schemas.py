@@ -72,6 +72,9 @@ class TournamentResponse(BaseModel):
     id: int
     name: str
     rounds: list[RoundResponse]
+    points_white_win: int = 1
+    points_black_win: int = 1
+    points_draw: int = 1
 
 
 class TournamentListItem(BaseModel):
@@ -86,6 +89,9 @@ class TournamentImportRequest(BaseModel):
 class TournamentUpdateRequest(BaseModel):
     name: Optional[str] = None
     yaml_content: Optional[str] = None
+    points_white_win: Optional[int] = Field(None, ge=0, description="Points for correct 1-0")
+    points_black_win: Optional[int] = Field(None, ge=0, description="Points for correct 0-1")
+    points_draw: Optional[int] = Field(None, ge=0, description="Points for correct draw")
 
 
 # --- Predictions ---

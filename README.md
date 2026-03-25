@@ -73,9 +73,9 @@ Then open http://127.0.0.1:8000/docs for interactive API docs.
 | POST | `/auth/bootstrap` | Promote user to super-admin (requires `BOOTSTRAP_SECRET`) |
 | GET | `/auth/me` | Current user |
 | GET | `/tournaments` | List tournaments |
-| GET | `/tournaments/{id}` | Get tournament with rounds & games |
+| GET | `/tournaments/{id}` | Get tournament (includes `points_white_win`, `points_black_win`, `points_draw`) |
 | POST | `/tournaments/import` | Import from YAML (admin) |
-| PUT | `/tournaments/{id}` | Update tournament (admin) |
+| PUT | `/tournaments/{id}` | Update tournament (admin): `name`, `yaml_content`, and/or scoring fields (`points_white_win`, `points_black_win`, `points_draw`, non-negative integers) |
 | GET | `/tournaments/{id}/leaderboard` | Leaderboard |
 | POST | `/predictions` | Submit or update prediction (before deadline) |
 | GET | `/predictions?round_id=` | My predictions for round |

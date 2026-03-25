@@ -70,6 +70,9 @@ export const api = {
       request<{
         id: number
         name: string
+        points_white_win: number
+        points_black_win: number
+        points_draw: number
         rounds: {
           id: number
           round_number: number
@@ -85,6 +88,24 @@ export const api = {
           }[]
         }[]
       }>(`/tournaments/${id}`),
+    update: (
+      id: number,
+      body: {
+        name?: string
+        yaml_content?: string
+        points_white_win?: number
+        points_black_win?: number
+        points_draw?: number
+      }
+    ) =>
+      request<{
+        id: number
+        name: string
+        points_white_win: number
+        points_black_win: number
+        points_draw: number
+        rounds: unknown[]
+      }>(`/tournaments/${id}`, { method: 'PUT', json: body }),
   },
   predictions: {
     create: (game_id: number, predicted_result: '1-0' | '0-1' | '1/2-1/2') =>

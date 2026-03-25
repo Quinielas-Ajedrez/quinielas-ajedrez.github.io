@@ -59,6 +59,10 @@ class Tournament:
     name: str
     rounds: List[Round] = field(default_factory=list)
     id: Optional[int] = None
+    # Points awarded when prediction matches actual result (defaults: 1 each)
+    points_white_win: int = 1  # 1-0
+    points_black_win: int = 1  # 0-1
+    points_draw: int = 1  # 1/2-1/2
 
 
 @dataclass

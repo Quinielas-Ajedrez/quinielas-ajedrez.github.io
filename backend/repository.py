@@ -51,7 +51,14 @@ def _round_to_dataclass(m: RoundModel) -> Round:
 
 def _tournament_to_dataclass(m: TournamentModel) -> Tournament:
     rounds = [_round_to_dataclass(r) for r in m.rounds]
-    return Tournament(id=m.id, name=m.name, rounds=rounds)
+    return Tournament(
+        id=m.id,
+        name=m.name,
+        rounds=rounds,
+        points_white_win=getattr(m, "points_white_win", 1) or 1,
+        points_black_win=getattr(m, "points_black_win", 1) or 1,
+        points_draw=getattr(m, "points_draw", 1) or 1,
+    )
 
 
 def _user_to_dataclass(m: UserModel) -> User:
@@ -116,7 +123,12 @@ def save_tournament(session: Session, tournament: Tournament) -> Tournament:
     if tournament.id is not None:
         return _update_tournament(session, tournament)
 
-    t = TournamentModel(name=tournament.name)
+    t = TournamentModel(
+        name=tournament.name,
+        points_white_win=tournament.points_white_win,
+        points_black_win=tournament.points_black_win,
+        points_draw=tournament.points_draw,
+    )
     session.add(t)
     session.flush()
 
@@ -155,6 +167,9 @@ def _update_tournament(session: Session, tournament: Tournament) -> Tournament:
         raise ValueError(f"Tournament with id {tournament.id} not found")
 
     t.name = tournament.name
+    t.points_white_win = tournament.points_white_win
+    t.points_black_win = tournament.points_black_win
+    t.points_draw = tournament.points_draw
 
     # Update rounds and games - for simplicity we replace all
     # (In a full implementation you might do a smarter merge)
@@ -195,6 +210,29 @@ def get_tournament(session: Session, tournament_id: int) -> Optional[Tournament]
     """Get a tournament by ID."""
     t = session.get(TournamentModel, tournament_id)
     return _tournament_to_dataclass(t) if t else None
+
+
+def patch_tournament_scoring(
+    session: Session,
+    tournament_id: int,
+    *,
+    points_white_win: Optional[int] = None,
+    points_black_win: Optional[int] = None,
+    points_draw: Optional[int] = None,
+) -> Optional[Tournament]:
+    """Update only scoring fields. Returns None if tournament not found."""
+    t = session.get(TournamentModel, tournament_id)
+    if t is None:
+        return None
+    if points_white_win is not None:
+        t.points_white_win = points_white_win
+    if points_black_win is not None:
+        t.points_black_win = points_black_win
+    if points_draw is not None:
+        t.points_draw = points_draw
+    session.commit()
+    session.refresh(t)
+    return _tournament_to_dataclass(t)
 
 
 def list_tournaments(session: Session) -> list[Tournament]:

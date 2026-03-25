@@ -30,7 +30,13 @@ def get_leaderboard(
 
     predictions = get_predictions_for_tournament(db, tournament_id)
     evaluator = Evaluator()
-    scores = evaluator.compute_scores(predictions, game_results)
+    scores = evaluator.compute_scores(
+        predictions,
+        game_results,
+        points_white_win=t.points_white_win,
+        points_black_win=t.points_black_win,
+        points_draw=t.points_draw,
+    )
 
     entries = []
     for uid, points in sorted(scores.items(), key=lambda x: -x[1]):

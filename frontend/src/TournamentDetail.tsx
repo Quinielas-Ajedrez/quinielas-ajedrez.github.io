@@ -4,6 +4,9 @@ import { api } from './api'
 type Tournament = {
   id: number
   name: string
+  points_white_win: number
+  points_black_win: number
+  points_draw: number
   rounds: {
     id: number
     round_number: number
@@ -145,6 +148,16 @@ export function TournamentDetail({ tournamentId, isAdmin, onBack, onLeaderboard,
         </div>
         <h1 style={{ fontSize: '1.5rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{tournament.name}</h1>
       </div>
+
+      {isAdmin && (
+        <AdminScoringPanel
+          tournamentId={tournamentId}
+          pointsWhiteWin={tournament.points_white_win ?? 1}
+          pointsBlackWin={tournament.points_black_win ?? 1}
+          pointsDraw={tournament.points_draw ?? 1}
+          onSaved={refresh}
+        />
+      )}
 
       <h2 style={{ fontSize: '1.125rem', marginBottom: '0.75rem' }}>Rounds</h2>
       {tournament.rounds.map((r) => {
@@ -385,6 +398,124 @@ function AdminResultInput({
       >
         {saving ? '…' : 'Set'}
       </button>
+    </div>
+  )
+}
+
+function AdminScoringPanel({
+  tournamentId,
+  pointsWhiteWin,
+  pointsBlackWin,
+  pointsDraw,
+  onSaved,
+}: {
+  tournamentId: number
+  pointsWhiteWin: number
+  pointsBlackWin: number
+  pointsDraw: number
+  onSaved: () => void
+}) {
+  const [pw, setPw] = useState(String(pointsWhiteWin))
+  const [pb, setPb] = useState(String(pointsBlackWin))
+  const [pd, setPd] = useState(String(pointsDraw))
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setPw(String(pointsWhiteWin))
+    setPb(String(pointsBlackWin))
+    setPd(String(pointsDraw))
+  }, [pointsWhiteWin, pointsBlackWin, pointsDraw])
+
+  const handleSave = async () => {
+    const a = parseInt(pw, 10)
+    const b = parseInt(pb, 10)
+    const c = parseInt(pd, 10)
+    if ([a, b, c].some((n) => Number.isNaN(n) || n < 0)) {
+      alert('Use non-negative whole numbers')
+      return
+    }
+    setSaving(true)
+    try {
+      await api.tournaments.update(tournamentId, {
+        points_white_win: a,
+        points_black_win: b,
+        points_draw: c,
+      })
+      await onSaved()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        marginBottom: '1rem',
+        padding: '0.75rem 1rem',
+        border: '1px solid #e5e4e7',
+        borderRadius: 4,
+        background: '#fafafa',
+      }}
+    >
+      <h3 style={{ fontSize: '1rem', margin: '0 0 0.5rem 0' }}>Scoring</h3>
+      <p style={{ fontSize: '0.8125rem', color: '#666', marginBottom: '0.75rem' }}>
+        Points for each correct prediction: white win (1-0), black win (0-1), draw (½-½).
+      </p>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          alignItems: 'center',
+          marginBottom: '0.5rem',
+        }}
+      >
+        <label style={{ fontSize: '0.875rem' }}>
+          1-0{' '}
+          <input
+            type="number"
+            min={0}
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
+          />
+        </label>
+        <label style={{ fontSize: '0.875rem' }}>
+          0-1{' '}
+          <input
+            type="number"
+            min={0}
+            value={pb}
+            onChange={(e) => setPb(e.target.value)}
+            style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
+          />
+        </label>
+        <label style={{ fontSize: '0.875rem' }}>
+          Draw{' '}
+          <input
+            type="number"
+            min={0}
+            value={pd}
+            onChange={(e) => setPd(e.target.value)}
+            style={{ width: 56, padding: '0.25rem', marginLeft: 4 }}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            ...baseStyles.btn,
+            padding: '0.35rem 0.75rem',
+            background: '#333',
+            color: '#fff',
+          }}
+        >
+          {saving ? 'Saving…' : 'Save scoring'}
+        </button>
+      </div>
     </div>
   )
 }

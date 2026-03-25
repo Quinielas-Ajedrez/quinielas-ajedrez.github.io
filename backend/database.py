@@ -42,6 +42,9 @@ class TournamentModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    points_white_win: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    points_black_win: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    points_draw: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     rounds: Mapped[list["RoundModel"]] = relationship(
         "RoundModel",
@@ -144,6 +147,7 @@ def init_db() -> None:
     """Create all tables if they don't exist."""
     Base.metadata.create_all(bind=engine)
     _migrate_add_is_super_admin()
+    _migrate_add_tournament_scoring()
 
 
 def _migrate_add_is_super_admin() -> None:
@@ -159,6 +163,21 @@ def _migrate_add_is_super_admin() -> None:
         except Exception:
             conn.rollback()
             # Column likely already exists
+
+
+def _migrate_add_tournament_scoring() -> None:
+    """Add points_* columns to tournaments if missing."""
+    for col in ("points_white_win", "points_black_win", "points_draw"):
+        with engine.connect() as conn:
+            try:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE tournaments ADD COLUMN {col} INTEGER NOT NULL DEFAULT 1"
+                    )
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
 
 def get_db():
