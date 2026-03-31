@@ -1,6 +1,27 @@
 /** Use `||` so empty `VITE_API_URL=""` still defaults to `/api` (see Vite base URL). */
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 const TOKEN_KEY = 'quiniela_token'
+const GATE_TOKEN_KEY = 'quiniela_gate_token'
+
+/** Must match backend `GATE_HEADER_NAME`. */
+export const GATE_HEADER_NAME = 'X-Quiniela-Gate'
+
+export function getGateToken(): string | null {
+  try {
+    return sessionStorage.getItem(GATE_TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setGateToken(token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(GATE_TOKEN_KEY, token)
+    else sessionStorage.removeItem(GATE_TOKEN_KEY)
+  } catch {
+    /* sessionStorage unavailable */
+  }
+}
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -40,6 +61,10 @@ async function request<T>(
   const token = getToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
+  }
+  const gate = getGateToken()
+  if (gate) {
+    headers[GATE_HEADER_NAME] = gate
   }
   const res = await fetch(`${API_URL}${path}`, {
     ...init,

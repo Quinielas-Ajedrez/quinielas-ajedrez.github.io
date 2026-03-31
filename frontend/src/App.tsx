@@ -4,13 +4,19 @@ import { LeaderboardPage } from './LeaderboardPage'
 import { StatisticsPage } from './StatisticsPage'
 import { TournamentDetail } from './TournamentDetail'
 import { UsersPage } from './UsersPage'
-import { api, clearToken, getToken } from './api'
+import { api, clearToken, GATE_HEADER_NAME, getGateToken, getToken, setGateToken } from './api'
 
 const API_URL = import.meta.env.VITE_API_URL ?? '/api'
+
+function gateFetchHeaders(): HeadersInit {
+  const g = getGateToken()
+  return g ? { [GATE_HEADER_NAME]: g } : {}
+}
 
 async function checkGate(): Promise<boolean> {
   const res = await fetch(`${API_URL}/auth/site-gate`, {
     credentials: 'include',
+    headers: gateFetchHeaders(),
   })
   return res.ok
 }
@@ -18,11 +24,14 @@ async function checkGate(): Promise<boolean> {
 async function submitGate(password: string): Promise<boolean> {
   const res = await fetch(`${API_URL}/auth/site-gate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...gateFetchHeaders() },
     credentials: 'include',
     body: JSON.stringify({ password }),
   })
-  return res.ok
+  if (!res.ok) return false
+  const data = (await res.json().catch(() => ({}))) as { gate_token?: string }
+  if (data.gate_token) setGateToken(data.gate_token)
+  return true
 }
 
 function GatePage({ onPass }: { onPass: () => void }) {

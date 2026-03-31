@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..deps import (
     GATE_COOKIE_MAX_AGE,
     GATE_COOKIE_NAME,
+    GATE_HEADER_NAME,
     check_site_password,
     create_access_token,
     create_gate_token,
@@ -33,7 +34,7 @@ def submit_site_gate(
     body: dict,
     response: Response,
 ) -> dict:
-    """Submit site password. On success, sets httpOnly cookie and returns 200."""
+    """Submit site password. On success, sets httpOnly cookie and returns gate_token for cookieless clients."""
     password = body.get("password", "")
     if not check_site_password(password):
         raise HTTPException(
@@ -50,13 +51,15 @@ def submit_site_gate(
         secure=True,
         path="/",
     )
-    return {"ok": True}
+    return {"ok": True, "gate_token": token}
 
 
 @router.get("/site-gate")
 def check_site_gate(request: Request) -> dict:
-    """Check if the gate cookie is valid. Returns 200 if past the gate, 401 otherwise."""
-    token = request.cookies.get(GATE_COOKIE_NAME)
+    """Check if the gate cookie or X-Quiniela-Gate header is valid."""
+    token = request.cookies.get(GATE_COOKIE_NAME) or request.headers.get(GATE_HEADER_NAME)
+    if token:
+        token = token.strip()
     if not verify_gate_token(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

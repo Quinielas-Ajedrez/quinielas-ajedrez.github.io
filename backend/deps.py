@@ -21,6 +21,8 @@ ALGORITHM = "HS256"
 # Site gate - password required before accessing the app
 SITE_PASSWORD = os.getenv("SITE_PASSWORD", "quiniela")
 GATE_COOKIE_NAME = "quiniela_gate"
+# Fallback when cross-site cookies are blocked (e.g. Safari ITP): same JWT as cookie, sent by client.
+GATE_HEADER_NAME = "X-Quiniela-Gate"
 GATE_COOKIE_MAX_AGE = 60 * 60 * 24  # 24 hours
 
 security = HTTPBearer(auto_error=False)
