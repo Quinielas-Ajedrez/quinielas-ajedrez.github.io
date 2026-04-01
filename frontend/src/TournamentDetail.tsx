@@ -174,15 +174,20 @@ export function TournamentDetail({
     refresh().finally(() => setLoading(false))
   }, [tournamentId])
 
-  const savePrediction = async (gameId: number, result: '1-0' | '0-1' | '1/2-1/2') => {
+  const savePrediction = async (
+    gameId: number,
+    result: '1-0' | '0-1' | '1/2-1/2',
+  ): Promise<boolean> => {
     try {
       await api.predictions.create(gameId, result)
       setPredictions((prev) => {
         const filtered = prev.filter((p) => p.game_id !== gameId)
         return [...filtered, { game_id: gameId, predicted_result: result }]
       })
+      return true
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to save')
+      return false
     }
   }
 
@@ -394,14 +399,18 @@ function GameRow({
     result: string | null
   }
   currentPrediction: string | null
-  onSave: (gameId: number, result: '1-0' | '0-1' | '1/2-1/2') => void
+  onSave: (gameId: number, result: '1-0' | '0-1' | '1/2-1/2') => Promise<boolean>
   deadlinePassed: boolean
   isAdmin: boolean
   onResultUpdate: () => void
 }) {
   const [sel, setSel] = useState(currentPrediction)
   const [saving, setSaving] = useState(false)
+  /** Set after a successful Save in this session; row is green while selection matches. */
+  const [lastSavedSelection, setLastSavedSelection] = useState<string | null>(null)
   const canEdit = !deadlinePassed
+  const savedHighlight =
+    lastSavedSelection !== null && sel !== null && sel === lastSavedSelection
   useEffect(() => {
     setSel(currentPrediction)
   }, [currentPrediction])
@@ -411,13 +420,14 @@ function GameRow({
       style={{
         padding: '0.75rem 1rem',
         marginBottom: '0.5rem',
-        border: '1px solid #eee',
+        border: savedHighlight ? '1px solid #2d8f54' : '1px solid #eee',
         borderRadius: 4,
-        background: '#fafafa',
+        background: savedHighlight ? '#e8f5ed' : '#fafafa',
         display: 'flex',
         alignItems: 'center',
         gap: '0.75rem',
         flexWrap: 'wrap',
+        transition: 'background 0.2s ease, border-color 0.2s ease',
       }}
     >
       <span style={{ fontWeight: 600 }}>
@@ -435,9 +445,10 @@ function GameRow({
                 ...baseStyles.btn,
                 padding: '0.35rem 0.6rem',
                 fontSize: '0.875rem',
-                background: sel === opt ? '#333' : '#fff',
+                background:
+                  sel === opt ? (savedHighlight ? '#1f6b3d' : '#333') : '#fff',
                 color: sel === opt ? '#fff' : '#333',
-                borderColor: sel === opt ? '#333' : '#ccc',
+                borderColor: sel === opt ? (savedHighlight ? '#1f6b3d' : '#333') : '#ccc',
               }}
             >
               {opt}
@@ -463,19 +474,24 @@ function GameRow({
           style={{
             ...baseStyles.btn,
             padding: '0.35rem 0.6rem',
-            background: sel ? '#333' : 'transparent',
+            background: sel ? (savedHighlight ? '#1f6b3d' : '#333') : 'transparent',
             color: sel ? '#fff' : '#333',
+            borderColor: sel ? (savedHighlight ? '#1f6b3d' : '#999') : '#999',
             marginLeft: 'auto',
             flexShrink: 0,
           }}
           onClick={async () => {
             if (!sel || !RESULT_OPTIONS.includes(sel as any)) return
             setSaving(true)
-            await onSave(game.id, sel as '1-0' | '0-1' | '1/2-1/2')
-            setSaving(false)
+            try {
+              const ok = await onSave(game.id, sel as '1-0' | '0-1' | '1/2-1/2')
+              if (ok) setLastSavedSelection(sel)
+            } finally {
+              setSaving(false)
+            }
           }}
         >
-          {saving ? '…' : 'Save'}
+          {saving ? '…' : savedHighlight ? 'Saved' : 'Save'}
         </button>
       )}
 
