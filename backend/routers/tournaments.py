@@ -5,7 +5,7 @@ from dataclasses import replace
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..deps import get_current_user, get_db, require_admin, require_super_admin
+from ..deps import get_current_user, get_db, require_admin
 from ..repository import (
     apply_tournament_patch,
     delete_round,
@@ -275,7 +275,7 @@ def read_table_prediction(
 def prediction_statistics(
     tournament_id: int,
     db: Session = Depends(get_db),
-    _super=Depends(require_super_admin),
+    _user=Depends(get_current_user),
 ) -> TournamentPredictionStatisticsResponse:
     t = get_tournament(db, tournament_id)
     if t is None:

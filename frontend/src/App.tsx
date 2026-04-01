@@ -431,19 +431,15 @@ function AppContent({
             setView({ type: 'leaderboard', tournamentId: view.id, tournamentName: t.name })
           )
         }}
-        onStatistics={
-          user.is_super_admin
-            ? () => {
-                api.tournaments.get(view.id).then((t) =>
-                  setView({
-                    type: 'statistics',
-                    tournamentId: view.id,
-                    tournamentName: t.name,
-                  })
-                )
-              }
-            : undefined
-        }
+        onStatistics={() => {
+          api.tournaments.get(view.id).then((t) =>
+            setView({
+              type: 'statistics',
+              tournamentId: view.id,
+              tournamentName: t.name,
+            })
+          )
+        }}
         onLogout={onLogout}
       />
     )

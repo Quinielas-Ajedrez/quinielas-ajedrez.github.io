@@ -172,7 +172,7 @@ class TablePredictionGetResponse(BaseModel):
     ranking_player_ids: Optional[list[int]] = None
 
 
-# --- Super-admin statistics ---
+# --- Tournament prediction statistics (aggregate counts per game) ---
 
 
 class GamePredictionBreakdown(BaseModel):

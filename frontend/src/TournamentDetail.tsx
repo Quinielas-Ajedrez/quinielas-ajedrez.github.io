@@ -54,7 +54,7 @@ interface TournamentDetailProps {
   isAdmin: boolean
   onBack: () => void
   onLeaderboard: () => void
-  /** Super-admin: opens the per-game prediction statistics view. */
+  /** Opens aggregate prediction counts per game (all signed-in users). */
   onStatistics?: () => void
   /** After an admin deletes the tournament (navigate away). */
   onTournamentDeleted?: () => void
