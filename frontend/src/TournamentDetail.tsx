@@ -28,12 +28,22 @@ const baseStyles = {
   },
 }
 
+/** Display prediction deadlines in US Eastern Time (EST/EDT) to avoid browser-local ambiguity. */
+const DEADLINE_DISPLAY_TZ = 'America/New_York'
+
 function formatDeadline(iso: string) {
   try {
     const d = new Date(iso)
-    return d.toLocaleString(undefined, {
-      dateStyle: 'short',
-      timeStyle: 'short',
+    if (Number.isNaN(d.getTime())) return iso
+    return d.toLocaleString('en-US', {
+      timeZone: DEADLINE_DISPLAY_TZ,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short',
     })
   } catch {
     return iso
