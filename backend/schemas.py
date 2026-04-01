@@ -47,6 +47,12 @@ class UserUpdateRequest(BaseModel):
     is_admin: Optional[bool] = None
 
 
+class UserPasswordSetRequest(BaseModel):
+    """Super-admin sets a user's login password (e.g. when they forgot it)."""
+
+    password: str = Field(..., min_length=1, max_length=200)
+
+
 # --- Tournaments ---
 
 

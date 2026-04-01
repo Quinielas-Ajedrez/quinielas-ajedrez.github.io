@@ -3,10 +3,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..deps import get_db, require_super_admin
+from ..deps import get_db, hash_password, require_super_admin
 from ..models import User
 from ..repository import delete_user, get_user_by_id, list_users, save_user
-from ..schemas import UserResponse, UserUpdateRequest
+from ..schemas import UserPasswordSetRequest, UserResponse, UserUpdateRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -41,6 +41,38 @@ def list_users_route(
         )
         for u in users
     ]
+
+
+@router.post("/{user_id}/password", response_model=UserResponse)
+def set_user_password(
+    user_id: int,
+    body: UserPasswordSetRequest,
+    db: Session = Depends(get_db),
+    super_admin=Depends(require_super_admin),
+) -> UserResponse:
+    """Set a user's login password. Super-admin only."""
+    u = get_user_by_id(db, user_id)
+    if u is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    updated = save_user(
+        db,
+        User(
+            id=u.id,
+            name=u.name,
+            username=u.username,
+            password_hash=hash_password(body.password),
+            is_admin=u.is_admin,
+            is_super_admin=u.is_super_admin,
+        ),
+    )
+    return UserResponse(
+        id=updated.id,
+        name=updated.name,
+        username=updated.username,
+        is_admin=updated.is_admin,
+        is_super_admin=updated.is_super_admin,
+    )
 
 
 @router.patch("/{user_id}", response_model=UserResponse)

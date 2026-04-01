@@ -45,6 +45,21 @@ export function UsersPage({ currentUserId, onBack, onLogout }: UsersPageProps) {
     }
   }
 
+  const setPassword = async (u: UserRow) => {
+    const p = window.prompt(`New password for @${u.username} (min 1 character):`)
+    if (p === null) return
+    if (p.length < 1) {
+      alert('Password cannot be empty.')
+      return
+    }
+    try {
+      await api.users.setPassword(u.id, p)
+      alert(`Password updated for @${u.username}.`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to set password')
+    }
+  }
+
   const deleteUser = async (u: UserRow) => {
     if (u.id === currentUserId) return
     if (
@@ -136,6 +151,20 @@ export function UsersPage({ currentUserId, onBack, onLogout }: UsersPageProps) {
                 )}
               </span>
               <span style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => void setPassword(u)}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.875rem',
+                    border: '1px solid #999',
+                    borderRadius: 4,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Set password
+                </button>
                 {!u.is_super_admin && (
                   <button
                     type="button"

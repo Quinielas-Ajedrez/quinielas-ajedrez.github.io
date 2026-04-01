@@ -249,6 +249,12 @@ export const api = {
         `/users/${userId}`,
         { method: 'PATCH', json: { is_admin: isAdmin } }
       ),
+    /** Super-admin only: set a user's login password (e.g. forgot password). */
+    setPassword: (userId: number, password: string) =>
+      request<{ id: number; name: string; username: string; is_admin: boolean; is_super_admin: boolean }>(
+        `/users/${userId}/password`,
+        { method: 'POST', json: { password } }
+      ),
     /** POST …/delete first; falls back to DELETE (see tournaments.delete). */
     delete: async (userId: number) => {
       try {
