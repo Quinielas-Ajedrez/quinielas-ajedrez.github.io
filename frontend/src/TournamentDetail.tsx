@@ -28,8 +28,72 @@ const baseStyles = {
   },
 }
 
-/** Display prediction deadlines in US Eastern Time (EST/EDT) to avoid browser-local ambiguity. */
+/** US Eastern Time (handles EST/EDT) for display and admin deadline inputs. */
 const DEADLINE_DISPLAY_TZ = 'America/New_York'
+
+function getEasternWallParts(d: Date): {
+  y: number
+  mo: number
+  d: number
+  h: number
+  min: number
+} {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEADLINE_DISPLAY_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const p = fmt.formatToParts(d)
+  const get = (type: Intl.DateTimeFormatPart['type']) =>
+    p.find((x) => x.type === type)?.value ?? ''
+  return {
+    y: parseInt(get('year'), 10),
+    mo: parseInt(get('month'), 10),
+    d: parseInt(get('day'), 10),
+    h: parseInt(get('hour'), 10),
+    min: parseInt(get('minute'), 10),
+  }
+}
+
+/** Instant → `YYYY-MM-DDTHH:mm` for `<input type="datetime-local">` (values mean Eastern wall time). */
+function isoToEasternDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = getEasternWallParts(d)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:${pad(p.min)}`
+}
+
+/**
+ * Parse `YYYY-MM-DDTHH:mm` (optional seconds) as Eastern wall time → UTC ISO string.
+ */
+function easternDatetimeLocalToIso(naive: string): string | null {
+  const m = naive.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/)
+  if (!m) return null
+  const y = +m[1]
+  const mo = +m[2]
+  const d = +m[3]
+  const h = +m[4]
+  const min = +m[5]
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || min > 59) return null
+  const utcMidnightGuess = Date.UTC(y, mo - 1, d, 0, 0)
+  const start = utcMidnightGuess - 12 * 60 * 60 * 1000
+  const end = utcMidnightGuess + 36 * 60 * 60 * 1000
+  const matches: Date[] = []
+  for (let t = start; t <= end; t += 60 * 1000) {
+    const utc = new Date(t)
+    const parts = getEasternWallParts(utc)
+    if (parts.y === y && parts.mo === mo && parts.d === d && parts.h === h && parts.min === min) {
+      matches.push(utc)
+    }
+  }
+  if (matches.length === 0) return null
+  return matches[0].toISOString()
+}
 
 function formatDeadline(iso: string) {
   try {
@@ -48,13 +112,6 @@ function formatDeadline(iso: string) {
   } catch {
     return iso
   }
-}
-
-function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const RESULT_OPTIONS = ['1-0', '0-1', '1/2-1/2'] as const
@@ -739,18 +796,22 @@ function AdminRoundDeadline({
   predictionDeadline: string
   onSaved: () => void
 }) {
-  const [value, setValue] = useState(() => toDatetimeLocalValue(predictionDeadline))
+  const [value, setValue] = useState(() => isoToEasternDatetimeLocal(predictionDeadline))
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setValue(toDatetimeLocalValue(predictionDeadline))
+    setValue(isoToEasternDatetimeLocal(predictionDeadline))
   }, [predictionDeadline])
 
   const handleSave = async () => {
     if (!value) return
+    const iso = easternDatetimeLocalToIso(value)
+    if (!iso) {
+      alert('Invalid date or time (use a valid calendar date in Eastern Time).')
+      return
+    }
     setSaving(true)
     try {
-      const iso = new Date(value).toISOString()
       await api.rounds.patch(roundId, { prediction_deadline: iso })
       await onSaved()
     } catch (err) {
@@ -774,7 +835,9 @@ function AdminRoundDeadline({
         border: '1px solid #e5e4e7',
       }}
     >
-      <span style={{ fontSize: '0.8125rem', color: '#555' }}>Prediction deadline</span>
+      <span style={{ fontSize: '0.8125rem', color: '#555' }}>
+        Prediction deadline <span style={{ color: '#888' }}>(Eastern Time)</span>
+      </span>
       <input
         type="datetime-local"
         value={value}
@@ -991,7 +1054,7 @@ function AdminTablePanel({
 
   useEffect(() => {
     setDeadlineLocal(
-      tablePredictionDeadline ? toDatetimeLocalValue(tablePredictionDeadline) : ''
+      tablePredictionDeadline ? isoToEasternDatetimeLocal(tablePredictionDeadline) : ''
     )
   }, [tablePredictionDeadline])
 
@@ -1043,7 +1106,7 @@ function AdminTablePanel({
 
       <div style={{ marginBottom: '0.75rem' }}>
         <span style={{ fontSize: '0.8125rem', color: '#555', marginRight: '0.5rem' }}>
-          Table prediction deadline
+          Table prediction deadline <span style={{ color: '#888' }}>(Eastern Time)</span>
         </span>
         <input
           type="datetime-local"
@@ -1055,10 +1118,15 @@ function AdminTablePanel({
           type="button"
           disabled={savingDeadline || !deadlineLocal}
           onClick={async () => {
+            const iso = easternDatetimeLocalToIso(deadlineLocal)
+            if (!iso) {
+              alert('Invalid date or time (use a valid calendar date in Eastern Time).')
+              return
+            }
             setSavingDeadline(true)
             try {
               await api.tournaments.update(tournamentId, {
-                table_prediction_deadline: new Date(deadlineLocal).toISOString(),
+                table_prediction_deadline: iso,
               })
               await onSaved()
             } catch (err) {
