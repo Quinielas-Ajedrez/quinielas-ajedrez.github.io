@@ -8,8 +8,17 @@ interface LeaderboardPageProps {
   onLogout?: () => void
 }
 
+type LeaderboardEntry = {
+  user_id: number
+  username: string
+  name: string
+  points: number
+  points_rounds: number
+  points_table: number
+}
+
 export function LeaderboardPage({ tournamentId, tournamentName, onBack, onLogout }: LeaderboardPageProps) {
-  const [entries, setEntries] = useState<{ user_id: number; username: string; name: string; points: number }[]>([])
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -29,8 +38,17 @@ export function LeaderboardPage({ tournamentId, tournamentName, onBack, onLogout
     background: 'transparent' as const,
     cursor: 'pointer' as const,
   }
+
+  const thTd = {
+    padding: '0.5rem 0.65rem' as const,
+    textAlign: 'left' as const,
+    fontSize: '0.875rem' as const,
+  }
+
+  const numCell = { ...thTd, textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' as const }
+
   return (
-    <div style={{ maxWidth: 640, margin: '4rem auto', fontFamily: 'system-ui' }}>
+    <div style={{ maxWidth: 720, margin: '4rem auto', fontFamily: 'system-ui' }}>
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
           <button type="button" onClick={onBack} style={btnStyle}>
@@ -53,28 +71,46 @@ export function LeaderboardPage({ tournamentId, tournamentName, onBack, onLogout
         <p style={{ color: '#666' }}>No scores yet. Scoring logic coming soon.</p>
       )}
       {!loading && !error && entries.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {entries.map((e, i) => (
-            <li
-              key={e.user_id}
-              style={{
-                padding: '0.75rem 1rem',
-                marginBottom: '0.5rem',
-                border: '1px solid #e5e4e7',
-                borderRadius: 4,
-                background: '#fff',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span>
-                {i + 1}. {e.name} (@{e.username})
-              </span>
-              <strong>{e.points} pts</strong>
-            </li>
-          ))}
-        </ul>
+        <div style={{ overflowX: 'auto' }}>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              border: '1px solid #e5e4e7',
+              borderRadius: 4,
+              background: '#fff',
+            }}
+          >
+            <thead>
+              <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e4e7' }}>
+                <th style={thTd}>#</th>
+                <th style={thTd}>Player</th>
+                <th style={numCell} title="Points from per-round game predictions">
+                  Rounds
+                </th>
+                <th style={numCell} title="Points from final table prediction">
+                  Table
+                </th>
+                <th style={numCell} title="Rounds + table">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e, i) => (
+                <tr key={e.user_id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={thTd}>{i + 1}</td>
+                  <td style={thTd}>
+                    {e.name} <span style={{ color: '#777' }}>(@{e.username})</span>
+                  </td>
+                  <td style={numCell}>{e.points_rounds}</td>
+                  <td style={numCell}>{e.points_table}</td>
+                  <td style={{ ...numCell, fontWeight: 600 }}>{e.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

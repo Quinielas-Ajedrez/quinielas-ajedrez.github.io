@@ -367,6 +367,7 @@ export function TournamentDetail({
         players={tournament.players}
         tablePredictionDeadline={tournament.table_prediction_deadline}
         savedRankingIds={tableRankingIds}
+        finalRankingPlayerIds={tournament.final_ranking_player_ids}
         refreshTournament={refresh}
       />
 
@@ -875,12 +876,14 @@ function UserTablePredictionPanel({
   players,
   tablePredictionDeadline,
   savedRankingIds,
+  finalRankingPlayerIds,
   refreshTournament,
 }: {
   tournamentId: number
   players: TournamentPlayer[]
   tablePredictionDeadline: string | null
   savedRankingIds: number[] | null
+  finalRankingPlayerIds: number[] | null
   refreshTournament: () => Promise<void>
 }) {
   const [order, setOrder] = useState<number[]>([])
@@ -910,6 +913,15 @@ function UserTablePredictionPanel({
     tablePredictionDeadline != null && new Date(tablePredictionDeadline) < new Date()
   const canPredict =
     tablePredictionDeadline != null && !deadlinePassed
+  const ids = new Set(players.map((p) => p.id))
+  const hasSavedPrediction =
+    !!savedRankingIds &&
+    savedRankingIds.length === players.length &&
+    savedRankingIds.every((id) => ids.has(id))
+  const finalRankingComplete =
+    !!finalRankingPlayerIds &&
+    finalRankingPlayerIds.length === players.length &&
+    finalRankingPlayerIds.every((id) => ids.has(id))
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
@@ -952,8 +964,71 @@ function UserTablePredictionPanel({
           {!tablePredictionDeadline && (
             <p style={{ fontSize: '0.875rem', color: '#a60' }}>The admin has not opened table predictions yet.</p>
           )}
-          {tablePredictionDeadline && deadlinePassed && (
-            <p style={{ fontSize: '0.875rem', color: '#666' }}>Table prediction is closed.</p>
+          {tablePredictionDeadline && deadlinePassed && !hasSavedPrediction && (
+            <p style={{ fontSize: '0.875rem', color: '#666' }}>
+              Table prediction is closed. You did not submit a ranking before the deadline.
+            </p>
+          )}
+          {tablePredictionDeadline && deadlinePassed && hasSavedPrediction && (
+            <>
+              <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>
+                Table prediction is closed. Your submission is shown below (read-only).
+              </p>
+              {finalRankingComplete && (
+                <p style={{ fontSize: '0.8125rem', color: '#555', marginBottom: '0.5rem' }}>
+                  Final result is in: each row is green if you had the right player in that place, red if not.
+                </p>
+              )}
+              <ol
+                style={{
+                  margin: '0',
+                  paddingLeft: '1.5rem',
+                  listStylePosition: 'outside',
+                }}
+              >
+                {order.map((pid, idx) => {
+                  const actualId = finalRankingComplete ? finalRankingPlayerIds![idx] : null
+                  const correct = actualId !== null && pid === actualId
+                  const highlight =
+                    finalRankingComplete &&
+                    (correct
+                      ? {
+                          backgroundColor: '#e8f5e9',
+                          borderLeft: '3px solid #2e7d32',
+                        }
+                      : {
+                          backgroundColor: '#ffebee',
+                          borderLeft: '3px solid #c62828',
+                        })
+                  return (
+                    <li
+                      key={pid}
+                      style={{
+                        marginBottom: '0.45rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        flexWrap: 'nowrap',
+                        padding: '0.25rem 0.35rem 0.25rem 0.5rem',
+                        borderRadius: 4,
+                        ...highlight,
+                      }}
+                    >
+                      <span
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {playerNameById(players, pid)}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ol>
+            </>
           )}
           {canPredict && (
             <>

@@ -235,9 +235,16 @@ export const api = {
   },
   leaderboard: {
     get: (tournamentId: number) =>
-      request<{ entries: { user_id: number; username: string; name: string; points: number }[] }>(
-        `/tournaments/${tournamentId}/leaderboard`
-      ),
+      request<{
+        entries: {
+          user_id: number
+          username: string
+          name: string
+          points: number
+          points_rounds: number
+          points_table: number
+        }[]
+      }>(`/tournaments/${tournamentId}/leaderboard`),
   },
   users: {
     list: () =>

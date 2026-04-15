@@ -63,12 +63,16 @@ def get_leaderboard(
     for uid, points in sorted(scores.items(), key=lambda x: -x[1]):
         u = get_user_by_id(db, uid)
         if u:
+            pr = game_scores.get(uid, 0)
+            pt = table_scores.get(uid, 0)
             entries.append(
                 LeaderboardEntry(
                     user_id=u.id,
                     username=u.username,
                     name=u.name,
                     points=points,
+                    points_rounds=pr,
+                    points_table=pt,
                 )
             )
 

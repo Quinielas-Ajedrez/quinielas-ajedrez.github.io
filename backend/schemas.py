@@ -151,6 +151,8 @@ class LeaderboardEntry(BaseModel):
     username: str
     name: str
     points: int
+    points_rounds: int = 0
+    points_table: int = 0
 
 
 class LeaderboardResponse(BaseModel):
