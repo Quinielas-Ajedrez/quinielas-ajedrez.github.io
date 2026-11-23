@@ -1,9 +1,10 @@
-# Deploying Quiniela to GitHub Pages + Render
+# Deploying Quiniela to GitHub Pages + Render + Neon
 
 ## Overview
 
 - **Frontend** → GitHub Pages (https://yourusername.github.io/Quiniela/)
-- **Backend** → Render (or Railway, Fly.io)
+- **Backend** → Render (free web service)
+- **Database** → Neon (free Postgres)
 
 ---
 
@@ -22,12 +23,18 @@
    - **Build Command:** `uv sync`
    - **Start Command:** `uv run uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 
-6. **Add a PostgreSQL database** (keeps data when the app sleeps):
-   - Click **New** → **PostgreSQL**
-   - Name it (e.g. `quiniela-db`), choose free plan, Create
-   - Go back to your Web Service → **Environment**
-   - Click **Add Database** (or **Link Resource**) and select the PostgreSQL instance
-   - Render will add `DATABASE_URL` automatically. Data will now persist across restarts.
+6. **Connect the Neon database** (keeps data when the app sleeps):
+   - Don't use Render's free PostgreSQL. Render deletes free databases after 30 days, which takes the app down. Neon's free tier doesn't expire; it suspends when idle and wakes on the next connection.
+   - The project is linked through `neon.ts`. From the project root, with the Neon CLI installed (`npm i -g neon@latest`):
+     ```bash
+     neon login
+     neon env pull   # writes DATABASE_URL and DATABASE_URL_UNPOOLED to .env.local (git-ignored)
+     ```
+     You can also copy both connection strings from the Neon console (**Connect**, pooled and direct).
+   - In your Web Service → **Environment**, set:
+     - `DATABASE_URL` = the **pooled** connection string (hostname contains `-pooler`), used for app traffic
+     - `DATABASE_URL_UNPOOLED` = the **direct** connection string (no `-pooler`), used at startup to create and migrate tables
+   - Tables are created automatically on first startup.
 
 7. Add other environment variables (if not already set):
    - `SITE_PASSWORD` = your gate password
@@ -146,5 +153,14 @@ The built files will be in `frontend/dist/`. For GitHub Pages, the workflow hand
 - Confirm `VITE_API_URL` is correct and the Render service is running.
 
 **Data (users, tournaments) disappears after inactivity**  
-- Render free tier uses ephemeral storage; SQLite data is lost when the instance sleeps.
-- Add a **PostgreSQL database** (New → PostgreSQL), link it to your web service. Render sets `DATABASE_URL` automatically. Redeploy. Data will persist.
+- `DATABASE_URL` isn't set, so the app fell back to SQLite, which is lost when the Render instance sleeps. Set the Neon variables (Step 1.6) and redeploy.
+
+**Backend never responds (requests hang, site doesn't load)**  
+- Check the Render logs for database connection errors at startup. This happened when the old free Render PostgreSQL expired. Confirm `DATABASE_URL` / `DATABASE_URL_UNPOOLED` point at a live Neon database.
+- The first request after ~15 minutes idle takes 30–60s while Render wakes the service. That's normal.
+
+**Running locally against Neon**  
+```bash
+set -a; source .env.local; set +a
+uv run uvicorn backend.main:app --reload
+```

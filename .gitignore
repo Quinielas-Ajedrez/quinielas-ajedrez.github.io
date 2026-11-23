@@ -5,3 +5,8 @@ __pycache__/
 data/
 *.db
 node_modules/
+
+# Local env files (secrets)
+.env
+.env.*
+.neon

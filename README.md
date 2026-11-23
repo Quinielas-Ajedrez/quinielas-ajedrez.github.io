@@ -150,7 +150,7 @@ WantedBy=multi-user.target
 ### Database
 
 - **SQLite** (default): Uses `data/quiniela.db` when `DATABASE_URL` is not set. Fine for local dev; **ephemeral** on Render free tier (data lost when instance sleeps).
-- **PostgreSQL** (recommended for production): Set `DATABASE_URL` (Render adds this when you link a PostgreSQL database). Data persists across restarts.
+- **PostgreSQL** (recommended for production): Set `DATABASE_URL` to a Neon pooled connection string, and `DATABASE_URL_UNPOOLED` to the direct one (used for schema changes at startup). See [DEPLOY.md](DEPLOY.md). Data persists across restarts.
 
 ### Admin permissions when deployed
 

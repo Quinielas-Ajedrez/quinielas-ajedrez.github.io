@@ -1,6 +1,6 @@
 """
 Database setup and SQLAlchemy ORM models for persistence.
-Uses PostgreSQL when DATABASE_URL is set (e.g. on Render), otherwise SQLite.
+Uses PostgreSQL when DATABASE_URL is set (e.g. Neon), otherwise SQLite.
 """
 
 import os
@@ -193,16 +193,25 @@ class PredictionModel(Base):
 
 # Database URL - PostgreSQL when set (persistent), else SQLite (ephemeral on free tier)
 _database_url = os.getenv("DATABASE_URL")
-if _database_url:
+def _normalize_pg_url(url: str) -> str:
     # Render and others use postgres://, SQLAlchemy wants postgresql://
-    if _database_url.startswith("postgres://"):
-        _database_url = _database_url.replace("postgres://", "postgresql://", 1)
-    DATABASE_URL = _database_url
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
+# Neon: DATABASE_URL is the pooled (PgBouncer) endpoint for app traffic;
+# DATABASE_URL_UNPOOLED is the direct endpoint, used for schema changes (DDL).
+_unpooled_url = os.getenv("DATABASE_URL_UNPOOLED")
+if _database_url:
+    DATABASE_URL = _normalize_pg_url(_database_url)
+    MIGRATION_DATABASE_URL = _normalize_pg_url(_unpooled_url) if _unpooled_url else DATABASE_URL
     _connect_args = {}
 else:
     DATABASE_DIR = Path(__file__).resolve().parent.parent / "data"
     DATABASE_DIR.mkdir(parents=True, exist_ok=True)
     DATABASE_URL = f"sqlite:///{DATABASE_DIR / 'quiniela.db'}"
+    MIGRATION_DATABASE_URL = DATABASE_URL
     _connect_args = {"check_same_thread": False}
 
 # Engine and session factory
@@ -212,23 +221,33 @@ engine = create_engine(
     DATABASE_URL,
     connect_args=_connect_args,
     echo=False,
+    # Neon scales to zero; drop connections that went stale while suspended.
+    pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db() -> None:
-    """Create all tables if they don't exist."""
-    Base.metadata.create_all(bind=engine)
-    _migrate_add_is_super_admin()
-    _migrate_add_tournament_scoring()
-    _migrate_add_tournament_table_and_players()
+    """Create all tables if they don't exist (over the direct, non-pooled connection)."""
+    if MIGRATION_DATABASE_URL == DATABASE_URL:
+        ddl_engine = engine
+    else:
+        ddl_engine = create_engine(MIGRATION_DATABASE_URL, connect_args=_connect_args)
+    try:
+        Base.metadata.create_all(bind=ddl_engine)
+        _migrate_add_is_super_admin(ddl_engine)
+        _migrate_add_tournament_scoring(ddl_engine)
+        _migrate_add_tournament_table_and_players(ddl_engine)
+    finally:
+        if ddl_engine is not engine:
+            ddl_engine.dispose()
 
 
-def _migrate_add_is_super_admin() -> None:
+def _migrate_add_is_super_admin(ddl_engine) -> None:
     """Add is_super_admin column if it doesn't exist (for existing databases)."""
     is_postgres = "postgresql" in DATABASE_URL
     default_val = "FALSE" if is_postgres else "0"
-    with engine.connect() as conn:
+    with ddl_engine.connect() as conn:
         try:
             conn.execute(
                 text(f"ALTER TABLE users ADD COLUMN is_super_admin BOOLEAN DEFAULT {default_val}")
@@ -239,10 +258,10 @@ def _migrate_add_is_super_admin() -> None:
             # Column likely already exists
 
 
-def _migrate_add_tournament_scoring() -> None:
+def _migrate_add_tournament_scoring(ddl_engine) -> None:
     """Add points_* columns to tournaments if missing."""
     for col in ("points_white_win", "points_black_win", "points_draw"):
-        with engine.connect() as conn:
+        with ddl_engine.connect() as conn:
             try:
                 conn.execute(
                     text(
@@ -254,12 +273,12 @@ def _migrate_add_tournament_scoring() -> None:
                 conn.rollback()
 
 
-def _migrate_add_tournament_table_and_players() -> None:
+def _migrate_add_tournament_table_and_players(ddl_engine) -> None:
     """Add table prediction columns and game player FK columns for existing DBs."""
     is_pg = "postgresql" in DATABASE_URL
 
     def run(sql: str) -> None:
-        with engine.connect() as conn:
+        with ddl_engine.connect() as conn:
             try:
                 conn.execute(text(sql))
                 conn.commit()
