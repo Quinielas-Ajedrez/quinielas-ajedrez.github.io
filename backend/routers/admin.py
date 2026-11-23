@@ -10,7 +10,7 @@ from ..repository import (
     update_game_result,
     update_round,
 )
-from ..schemas import GameUpdateRequest, RoundUpdateRequest
+from ..schemas import GameUpdateRequest, RoundUpdateRequest, _serialize_utc
 
 router = APIRouter(tags=["admin"])
 
@@ -56,5 +56,5 @@ def patch_round(
     return {
         "id": updated.id,
         "round_name": updated.round_name,
-        "prediction_deadline": updated.prediction_deadline,
+        "prediction_deadline": _serialize_utc(updated.prediction_deadline),
     }

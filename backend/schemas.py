@@ -1,9 +1,29 @@
 """Pydantic schemas for API request/response."""
 
-from datetime import datetime
-from typing import Literal, Optional
+from datetime import datetime, timezone
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, PlainSerializer
+
+
+def _to_naive_utc(value: datetime) -> datetime:
+    """Store datetimes as naive UTC (the DB and deadline checks use utcnow())."""
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _serialize_utc(value: datetime) -> str:
+    """Emit an explicit UTC offset so browsers don't read the time as local."""
+    return _to_naive_utc(value).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+# Naive values are treated as UTC; aware values are converted to UTC.
+UtcDatetime = Annotated[
+    datetime,
+    AfterValidator(_to_naive_utc),
+    PlainSerializer(_serialize_utc, return_type=str),
+]
 
 GameResult = Literal["1-0", "0-1", "1/2-1/2"]
 
@@ -70,7 +90,7 @@ class RoundResponse(BaseModel):
     id: int
     round_number: int
     round_name: str
-    prediction_deadline: datetime
+    prediction_deadline: UtcDatetime
     games: list[GameResponse]
 
 
@@ -88,7 +108,7 @@ class TournamentResponse(BaseModel):
     points_black_win: int = 1
     points_draw: int = 1
     points_table_per_rank: int = 1
-    table_prediction_deadline: Optional[datetime] = None
+    table_prediction_deadline: Optional[UtcDatetime] = None
     final_ranking_player_ids: Optional[list[int]] = None
     players: list[TournamentPlayerResponse] = []
 
@@ -111,7 +131,7 @@ class TournamentUpdateRequest(BaseModel):
     points_table_per_rank: Optional[int] = Field(
         None, ge=0, description="Points per correct rank in final table prediction"
     )
-    table_prediction_deadline: Optional[datetime] = None
+    table_prediction_deadline: Optional[UtcDatetime] = None
     final_ranking_player_ids: Optional[list[int]] = None
 
 
@@ -140,7 +160,7 @@ class GameUpdateRequest(BaseModel):
 
 class RoundUpdateRequest(BaseModel):
     round_name: Optional[str] = None
-    prediction_deadline: Optional[datetime] = None
+    prediction_deadline: Optional[UtcDatetime] = None
 
 
 # --- Leaderboard ---
