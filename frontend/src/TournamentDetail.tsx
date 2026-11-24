@@ -474,11 +474,9 @@ function GameRow({
 }) {
   const [sel, setSel] = useState(currentPrediction)
   const [saving, setSaving] = useState(false)
-  /** Set after a successful Save in this session; row is green while selection matches. */
-  const [lastSavedSelection, setLastSavedSelection] = useState<string | null>(null)
   const canEdit = !deadlinePassed
-  const savedHighlight =
-    lastSavedSelection !== null && sel !== null && sel === lastSavedSelection
+  /** Green whenever the active selection matches the pick stored on the server. */
+  const savedHighlight = sel !== null && sel === currentPrediction
   useEffect(() => {
     setSel(currentPrediction)
   }, [currentPrediction])
@@ -552,8 +550,7 @@ function GameRow({
             if (!sel || !RESULT_OPTIONS.includes(sel as any)) return
             setSaving(true)
             try {
-              const ok = await onSave(game.id, sel as '1-0' | '0-1' | '1/2-1/2')
-              if (ok) setLastSavedSelection(sel)
+              await onSave(game.id, sel as '1-0' | '0-1' | '1/2-1/2')
             } finally {
               setSaving(false)
             }
